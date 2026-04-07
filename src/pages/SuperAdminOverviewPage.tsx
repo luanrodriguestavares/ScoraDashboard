@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { accountsApi, dashboardApi, monitoringApi, plansApi } from '@/services/api'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { cn } from '@/lib/utils'
-import type { DashboardStats, Plan } from '@/types'
+import type { DashboardStats } from '@/types'
 
 const emptyStats: DashboardStats = {
     total_decisions_today: 0,
@@ -239,7 +239,8 @@ export function SuperAdminOverviewPage() {
         () => ({
             total: accounts.length,
             active: accounts.filter((account) => account.active).length,
-            withPlan: accounts.filter((account) => Boolean(account.plan_id)).length,
+            withPlan: accounts.filter((account) => Boolean(account.plan?.id ?? account.plan_id))
+                .length,
             pendingOnboarding: accounts.filter(
                 (account) => Boolean(account.pending_invitation) || account.users_count === 0
             ).length,
@@ -252,33 +253,53 @@ export function SuperAdminOverviewPage() {
             total: plans.length,
             active: plans.filter((plan) => plan.active).length,
             custom: plans.filter((plan) => plan.is_custom).length,
-            assigned: plans.reduce((acc, plan) => acc + (plan.accounts_count ?? 0), 0),
+            assigned: accounts.filter((account) => Boolean(account.plan?.id ?? account.plan_id))
+                .length,
         }),
-        [plans]
+        [accounts, plans]
     )
 
     const topPlans = useMemo(() => {
-        const sorted = [...plans]
-            .sort((a, b) => (b.accounts_count ?? 0) - (a.accounts_count ?? 0))
-            .slice(0, 5)
-        const noPlanCount = accounts.filter((account) => !account.plan_id).length
+        const buckets = new Map<string, { id: string; display_name: string; count: number }>()
 
-        if (noPlanCount > 0) {
-            sorted.push({
-                id: '__no_plan__',
-                name: 'no-plan',
-                display_name: copy.noPlan,
-                price_monthly: null,
-                monthly_requests: null,
-                active: true,
-                is_custom: false,
-                accounts_count: noPlanCount,
-                created_at: '',
-                updated_at: '',
-            } as Plan)
+        for (const plan of plans) {
+            buckets.set(plan.id, {
+                id: plan.id,
+                display_name: plan.display_name,
+                count: 0,
+            })
         }
 
-        return sorted
+        for (const account of accounts) {
+            const planId = account.plan?.id ?? account.plan_id
+
+            if (!planId) {
+                const current = buckets.get('__no_plan__')
+                buckets.set('__no_plan__', {
+                    id: '__no_plan__',
+                    display_name: copy.noPlan,
+                    count: (current?.count ?? 0) + 1,
+                })
+                continue
+            }
+
+            const current = buckets.get(planId)
+            if (current) {
+                current.count += 1
+                continue
+            }
+
+            buckets.set(planId, {
+                id: planId,
+                display_name: account.plan?.display_name ?? planId,
+                count: 1,
+            })
+        }
+
+        return [...buckets.values()]
+            .filter((bucket) => bucket.count > 0)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5)
     }, [accounts, copy.noPlan, plans])
 
     const componentStatusSummary = useMemo(
@@ -669,7 +690,7 @@ export function SuperAdminOverviewPage() {
 
                                 <div className="space-y-3">
                                     {topPlans.map((plan) => {
-                                        const count = plan.accounts_count ?? 0
+                                        const count = plan.count
                                         const percentage = tenantStats.total
                                             ? (count / tenantStats.total) * 100
                                             : 0

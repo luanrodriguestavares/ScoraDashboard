@@ -586,8 +586,8 @@ export function AlertingPage() {
                                 {t.alerting?.alertEvents || 'Eventos de alerta'}
                             </CardTitle>
                             <div className="text-sm text-muted-foreground">
-                                Este feed ainda reflete decisões de alto risco e eventos internos do
-                                sistema. As regras salvas acima ainda não geram eventos nesta API.
+                                Este feed combina decisões de alto risco, eventos internos do
+                                sistema e disparos das regras ativas configuradas acima.
                             </div>
                         </CardHeader>
                         <CardContent>

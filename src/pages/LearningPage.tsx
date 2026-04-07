@@ -253,6 +253,10 @@ interface RecommendationCardProps {
 
 function RecommendationCard({ recommendation }: RecommendationCardProps) {
     const { t } = useLanguage()
+    const confidencePercent =
+        recommendation.confidence <= 1
+            ? Math.round(recommendation.confidence * 100)
+            : Math.round(recommendation.confidence)
     const icons = {
         threshold: Target,
         rule: Zap,
@@ -344,7 +348,7 @@ function RecommendationCard({ recommendation }: RecommendationCardProps) {
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Sparkles className="h-3 w-3" />
                                 <span>
-                                    {recommendation.confidence}%{' '}
+                                    {confidencePercent}%{' '}
                                     {t.learning?.confidence || 'confiança'}
                                 </span>
                             </div>
