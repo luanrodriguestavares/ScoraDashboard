@@ -18,6 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { ConfirmActionDialog } from '@/components/ConfirmActionDialog'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useToast } from '@/hooks/use-toast'
 import { plansApi } from '@/services/api'
 import type { Plan } from '@/types'
 import { CreditCard, Edit, Plus, RefreshCw, Trash2 } from 'lucide-react'
@@ -84,6 +85,7 @@ function toForm(plan: Plan): PlanForm {
 
 export function PlansPage() {
     const { language } = useLanguage()
+    const { toast } = useToast()
     const queryClient = useQueryClient()
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editingPlan, setEditingPlan] = useState<Plan | null>(null)
@@ -164,7 +166,29 @@ export function PlansPage() {
 
     const seedMutation = useMutation({
         mutationFn: () => plansApi.seedDefaults(),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['plans'] }),
+        onSuccess: (result) => {
+            queryClient.invalidateQueries({ queryKey: ['plans'] })
+
+            const created = result.created.length
+            const skipped = result.skipped.length
+            toast({
+                title: language === 'en' ? 'Default plans processed' : 'Planos padrão processados',
+                description:
+                    language === 'en'
+                        ? `Created ${created} and skipped ${skipped} existing plan(s).`
+                        : `Criados ${created} e ignorados ${skipped} plano(s) já existente(s).`,
+            })
+        },
+        onError: () => {
+            toast({
+                title: language === 'en' ? 'Unable to seed defaults' : 'Não foi possível popular padrões',
+                description:
+                    language === 'en'
+                        ? 'An error occurred while creating the default plans.'
+                        : 'Ocorreu um erro ao criar os planos padrão.',
+                variant: 'destructive',
+            })
+        },
     })
 
     const plans = plansQuery.data ?? []
@@ -249,8 +273,8 @@ export function PlansPage() {
               }
             : {
                   title: 'Planos',
-                  subtitle: 'Catalogo comercial e limites contratuais da plataforma.',
-                  seedDefaults: 'Popular padroes',
+                  subtitle: 'Catálogo comercial e limites contratuais da plataforma.',
+                  seedDefaults: 'Popular padrões',
                   newPlan: 'Novo plano',
                   editPlan: 'Editar plano',
                   createPlan: 'Criar plano',
@@ -258,18 +282,18 @@ export function PlansPage() {
                   createDescription: 'Cadastre um novo plano comercial.',
                   identityTitle: 'Identidade do plano',
                   identityDescription:
-                      'Defina nome interno, nome publico e posicionamento comercial.',
+                      'Defina nome interno, nome público e posicionamento comercial.',
                   slug: 'Slug do plano',
                   slugPlaceholder: 'starter',
-                  displayName: 'Nome de exibicao',
+                  displayName: 'Nome de exibição',
                   displayNamePlaceholder: 'Starter',
-                  descriptionLabel: 'Descricao',
+                  descriptionLabel: 'Descrição',
                   descriptionPlaceholder:
-                      'Plano para contas em inicio de operacao, com limites moderados e custo controlado.',
-                  pricingTitle: 'Preco e capacidade',
+                      'Plano para contas em início de operação, com limites moderados e custo controlado.',
+                  pricingTitle: 'Preço e capacidade',
                   pricingDescription:
-                      'Configure preco recorrente, volume mensal e limites tecnicos do plano.',
-                  monthlyPrice: 'Preco mensal',
+                      'Configure preço recorrente, volume mensal e limites técnicos do plano.',
+                  monthlyPrice: 'Preço mensal',
                   monthlyPricePlaceholder: '199',
                   monthlyRequests: 'Requests mensais',
                   monthlyRequestsPlaceholder: '50000',
@@ -277,38 +301,38 @@ export function PlansPage() {
                   itemsPerRequestPlaceholder: '100',
                   rateLimit: 'Rate limit por segundo',
                   rateLimitPlaceholder: '10',
-                  overagePrice: 'Preco de overage por 1000 requests',
+                  overagePrice: 'Preço de overage por 1000 requests',
                   overagePricePlaceholder: '29.90',
                   rulesTitle: 'Estado e regras',
                   rulesDescription:
-                      'Defina como o plano deve aparecer e se esta disponivel para novas contas.',
+                      'Defina como o plano deve aparecer e se está disponível para novas contas.',
                   overageEnabled: 'Overage habilitado',
-                  overageEnabledDesc: 'Permite cobrar excedente alem da quota mensal.',
+                  overageEnabledDesc: 'Permite cobrar excedente além da quota mensal.',
                   customPlan: 'Plano customizado',
-                  customPlanDesc: 'Use para contratos especiais e negociacoes sob medida.',
+                  customPlanDesc: 'Use para contratos especiais e negociações sob medida.',
                   activePlan: 'Plano ativo',
-                  activePlanDesc: 'Quando inativo, deixa de ser elegivel para novos vinculos.',
+                  activePlanDesc: 'Quando inativo, deixa de ser elegível para novos vínculos.',
                   cancel: 'Cancelar',
-                  saveChanges: 'Salvar alteracoes',
+                  saveChanges: 'Salvar alterações',
                   saving: 'Salvando...',
                   creating: 'Criando...',
-                  confirmEditTitle: 'Confirmar edicao do plano',
+                  confirmEditTitle: 'Confirmar edição do plano',
                   confirmEditDescription:
-                      'Deseja salvar as alteracoes feitas neste plano comercial?',
-                  confirmDeleteTitle: 'Confirmar exclusao do plano',
+                      'Deseja salvar as alterações feitas neste plano comercial?',
+                  confirmDeleteTitle: 'Confirmar exclusão do plano',
                   confirmDeleteDescription:
-                      'Este plano sera removido do catalogo. Deseja continuar?',
+                      'Este plano será removido do catálogo. Deseja continuar?',
                   confirmEdit: 'Salvar plano',
                   confirmDelete: 'Excluir plano',
                   total: 'Planos',
                   active: 'Ativos',
                   custom: 'Customizados',
                   customBadge: 'Customizado',
-                  standard: 'Padrao',
+                  standard: 'Padrão',
                   activeBadge: 'Ativo',
                   inactive: 'Inativo',
                   slugCard: 'Slug',
-                  priceCard: 'Preco',
+                  priceCard: 'Preço',
                   quotaCard: 'Quota',
                   rateLimitCard: 'Rate limit',
                   disabled: 'desligado',
