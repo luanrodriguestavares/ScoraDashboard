@@ -765,6 +765,7 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             reports: 'Relatórios',
             alerting: 'Alertas',
             accounts: 'Contas',
+            webhooks: 'Webhooks',
         },
         header: {
             title: 'Scora Panel',
@@ -1556,6 +1557,7 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             reports: 'Reports',
             alerting: 'Alerting',
             accounts: 'Accounts',
+            webhooks: 'Webhooks',
         },
         header: {
             title: 'Scora Panel',

@@ -21,6 +21,7 @@ import { AuditLogsPage } from '@/pages/AuditLogsPage'
 import { UsersPage } from '@/pages/UsersPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { RulesEnginePage } from '@/pages/RulesEnginePage'
+import { WebhooksPage } from '@/pages/WebhooksPage'
 import { MonitoringPage } from '@/pages/MonitoringPage'
 import { LearningPage } from '@/pages/LearningPage'
 import { InvestigationPage } from '@/pages/InvestigationPage'
@@ -323,6 +324,16 @@ function AppRouter() {
                     <AdminRoute>
                         <DashboardLayout>
                             <AlertingPage />
+                        </DashboardLayout>
+                    </AdminRoute>
+                }
+            />
+            <Route
+                path="/dashboard/webhooks"
+                element={
+                    <AdminRoute>
+                        <DashboardLayout>
+                            <WebhooksPage />
                         </DashboardLayout>
                     </AdminRoute>
                 }

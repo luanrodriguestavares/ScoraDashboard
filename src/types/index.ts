@@ -54,6 +54,7 @@ export interface RiskDecision {
     id: string
     group_id: string | null
     type: DataType
+    use_case?: string | null
     valueHash: string
     decision: Decision
     riskLevel: RiskLevel
@@ -255,6 +256,15 @@ export interface Webhook {
     events: WebhookEvent[]
     active: boolean
     secret: string | null
+    filter_validation_types: string[] | null
+    filter_risk_levels: string[] | null
+    filter_decisions: string[] | null
+    filter_min_score: number | null
+    timeout_ms: number
+    max_retries: number
+    headers: Record<string, string> | null
+    total_sent: number
+    total_failed: number
     created_at: string
     last_triggered_at?: string
 }

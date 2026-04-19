@@ -253,6 +253,15 @@ type WebhookResponse = {
     events: WebhookEvent[]
     secret: string | null
     is_active: boolean
+    filter_validation_types: string[] | null
+    filter_risk_levels: string[] | null
+    filter_decisions: string[] | null
+    filter_min_score: number | null
+    timeout_ms: number
+    max_retries: number
+    headers: Record<string, string> | null
+    total_sent: number
+    total_failed: number
     created_at: string
     last_triggered_at?: string | null
 }
@@ -265,6 +274,15 @@ function mapWebhook(webhook: WebhookResponse): Webhook {
         events: webhook.events,
         active: webhook.is_active,
         secret: webhook.secret,
+        filter_validation_types: webhook.filter_validation_types ?? null,
+        filter_risk_levels: webhook.filter_risk_levels ?? null,
+        filter_decisions: webhook.filter_decisions ?? null,
+        filter_min_score: webhook.filter_min_score ?? null,
+        timeout_ms: webhook.timeout_ms ?? 5000,
+        max_retries: webhook.max_retries ?? 3,
+        headers: webhook.headers ?? null,
+        total_sent: webhook.total_sent ?? 0,
+        total_failed: webhook.total_failed ?? 0,
         created_at: webhook.created_at,
         last_triggered_at: webhook.last_triggered_at ?? undefined,
     }
@@ -615,6 +633,13 @@ export const settingsApi = {
         url: string
         events: Webhook['events']
         active?: boolean
+        filter_validation_types?: string[] | null
+        filter_risk_levels?: string[] | null
+        filter_decisions?: string[] | null
+        filter_min_score?: number | null
+        timeout_ms?: number
+        max_retries?: number
+        headers?: Record<string, string> | null
     }) => {
         const created = await fetchWithAuth<WebhookResponse>('/v1/admin/webhooks', {
             method: 'POST',
@@ -623,6 +648,13 @@ export const settingsApi = {
                 url: webhook.url,
                 events: webhook.events,
                 is_active: webhook.active ?? true,
+                filter_validation_types: webhook.filter_validation_types ?? null,
+                filter_risk_levels: webhook.filter_risk_levels ?? null,
+                filter_decisions: webhook.filter_decisions ?? null,
+                filter_min_score: webhook.filter_min_score ?? null,
+                timeout_ms: webhook.timeout_ms ?? 5000,
+                max_retries: webhook.max_retries ?? 3,
+                headers: webhook.headers ?? null,
             }),
         })
         return mapWebhook(created)
@@ -630,16 +662,35 @@ export const settingsApi = {
 
     updateWebhook: async (
         id: string,
-        webhook: Partial<{ name: string; url: string; events: Webhook['events']; active: boolean }>
+        webhook: Partial<{
+            name: string
+            url: string
+            events: Webhook['events']
+            active: boolean
+            filter_validation_types: string[] | null
+            filter_risk_levels: string[] | null
+            filter_decisions: string[] | null
+            filter_min_score: number | null
+            timeout_ms: number
+            max_retries: number
+            headers: Record<string, string> | null
+        }>
     ) => {
+        const body: Record<string, unknown> = {}
+        if (webhook.name !== undefined) body.name = webhook.name
+        if (webhook.url !== undefined) body.url = webhook.url
+        if (webhook.events !== undefined) body.events = webhook.events
+        if (webhook.active !== undefined) body.is_active = webhook.active
+        if (webhook.filter_validation_types !== undefined) body.filter_validation_types = webhook.filter_validation_types
+        if (webhook.filter_risk_levels !== undefined) body.filter_risk_levels = webhook.filter_risk_levels
+        if (webhook.filter_decisions !== undefined) body.filter_decisions = webhook.filter_decisions
+        if (webhook.filter_min_score !== undefined) body.filter_min_score = webhook.filter_min_score
+        if (webhook.timeout_ms !== undefined) body.timeout_ms = webhook.timeout_ms
+        if (webhook.max_retries !== undefined) body.max_retries = webhook.max_retries
+        if (webhook.headers !== undefined) body.headers = webhook.headers
         const updated = await fetchWithAuth<WebhookResponse>(`/v1/admin/webhooks/${id}`, {
             method: 'PATCH',
-            body: JSON.stringify({
-                ...(webhook.name !== undefined ? { name: webhook.name } : {}),
-                ...(webhook.url !== undefined ? { url: webhook.url } : {}),
-                ...(webhook.events !== undefined ? { events: webhook.events } : {}),
-                ...(webhook.active !== undefined ? { is_active: webhook.active } : {}),
-            }),
+            body: JSON.stringify(body),
         })
         return mapWebhook(updated)
     },

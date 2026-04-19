@@ -4,26 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
-import { Switch } from '@/components/ui/switch'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useToast } from '@/hooks/use-toast'
 import {
     Settings,
     Sliders,
-    Webhook,
     Shield,
-    Plus,
-    Trash2,
-    Edit,
     Save,
     RotateCcw,
     Info,
@@ -31,7 +17,7 @@ import {
     CheckCircle2,
     AlertTriangle,
 } from 'lucide-react'
-import type { Webhook as WebhookType, WebhookEvent, RiskSettings } from '@/types'
+import type { RiskSettings } from '@/types'
 import { cn } from '@/lib/utils'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { settingsApi } from '@/services/api'
@@ -79,106 +65,16 @@ function ThresholdSlider({
     )
 }
 
-interface WebhookItemProps {
-    webhook: WebhookType
-    onToggleActive: (active: boolean) => void
-    onTest: () => void
-    onEdit: () => void
-    onDelete: () => void
-    isUpdating?: boolean
-    isTesting?: boolean
-    isDeleting?: boolean
-}
-
-const WEBHOOK_EVENT_OPTIONS: Array<{ value: WebhookEvent; label: string }> = [
-    { value: 'decision.allow', label: 'Decision Allow' },
-    { value: 'decision.review', label: 'Decision Review' },
-    { value: 'decision.block', label: 'Decision Block' },
-    { value: 'risk.high', label: 'High Risk' },
-    { value: 'risk.critical', label: 'Critical Risk' },
-    { value: 'velocity.burst', label: 'Velocity Burst' },
-    { value: 'anomaly.detected', label: 'Anomaly Detected' },
-    { value: 'pattern.fraud', label: 'Fraud Pattern' },
-    { value: 'graph.suspicious_cluster', label: 'Suspicious Cluster' },
-]
-
-function WebhookItem({
-    webhook,
-    onToggleActive,
-    onTest,
-    onEdit,
-    onDelete,
-    isUpdating = false,
-    isTesting = false,
-    isDeleting = false,
-}: WebhookItemProps) {
-    return (
-        <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                    <span
-                        className={cn(
-                            'w-2 h-2 rounded-full',
-                            webhook.active ? 'bg-decision-allow' : 'bg-muted-foreground'
-                        )}
-                    />
-                    <span className="font-mono text-sm truncate">{webhook.url}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                    {webhook.events.map((event) => (
-                        <Badge key={event} variant="secondary" className="text-xs capitalize">
-                            {WEBHOOK_EVENT_OPTIONS.find((option) => option.value === event)
-                                ?.label ?? event}
-                        </Badge>
-                    ))}
-                </div>
-            </div>
-            <div className="flex items-center gap-2 ml-4">
-                <Switch
-                    checked={webhook.active}
-                    onCheckedChange={onToggleActive}
-                    disabled={isUpdating || isDeleting}
-                />
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onTest}
-                    disabled={isTesting || isDeleting}
-                >
-                    Testar
-                </Button>
-                <Button variant="ghost" size="icon" onClick={onEdit}>
-                    <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={onDelete} disabled={isDeleting}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-            </div>
-        </div>
-    )
-}
-
 export function SettingsPage() {
     const { t } = useLanguage()
     const { toast } = useToast()
     const queryClient = useQueryClient()
     const [settings, setSettings] = useState<RiskSettings>(defaultSettings)
     const [hasChanges, setHasChanges] = useState(false)
-    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-    const [editingWebhook, setEditingWebhook] = useState<WebhookType | null>(null)
-    const [newWebhookUrl, setNewWebhookUrl] = useState('')
-    const [newWebhookEvents, setNewWebhookEvents] = useState<WebhookEvent[]>(['decision.block'])
-    const [editWebhookUrl, setEditWebhookUrl] = useState('')
-    const [editWebhookEvents, setEditWebhookEvents] = useState<WebhookEvent[]>([])
 
     const settingsQuery = useQuery({
         queryKey: ['settings'],
         queryFn: settingsApi.getSettings,
-    })
-
-    const webhooksQuery = useQuery({
-        queryKey: ['webhooks'],
-        queryFn: settingsApi.getWebhooks,
     })
 
     useEffect(() => {
@@ -204,72 +100,6 @@ export function SettingsPage() {
         }) => settingsApi.updateSecurity(payload),
     })
 
-    const createWebhookMutation = useMutation({
-        mutationFn: (payload: { url: string; events: WebhookType['events'] }) =>
-            settingsApi.createWebhook({
-                name: 'Webhook',
-                url: payload.url,
-                events: payload.events,
-                active: true,
-            }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['webhooks'] })
-            setNewWebhookUrl('')
-            setNewWebhookEvents(['decision.block'])
-            setIsCreateDialogOpen(false)
-            toast({ description: 'Webhook criado com sucesso.' })
-        },
-        onError: () => {
-            toast({ description: 'Falha ao criar webhook.', variant: 'destructive' })
-        },
-    })
-
-    const updateWebhookMutation = useMutation({
-        mutationFn: (payload: {
-            id: string
-            data: Partial<{
-                name: string
-                url: string
-                events: WebhookType['events']
-                active: boolean
-            }>
-        }) => settingsApi.updateWebhook(payload.id, payload.data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['webhooks'] })
-            setEditingWebhook(null)
-            toast({ description: 'Webhook atualizado com sucesso.' })
-        },
-        onError: () => {
-            toast({ description: 'Falha ao atualizar webhook.', variant: 'destructive' })
-        },
-    })
-
-    const testWebhookMutation = useMutation({
-        mutationFn: (id: string) => settingsApi.testWebhook(id),
-        onSuccess: (result) => {
-            toast({
-                description: result.success
-                    ? `Teste enviado com sucesso${result.status_code ? ` (${result.status_code})` : ''}.`
-                    : (result.error ?? 'O teste do webhook falhou.'),
-                variant: result.success ? 'default' : 'destructive',
-            })
-        },
-        onError: () => {
-            toast({ description: 'Falha ao testar webhook.', variant: 'destructive' })
-        },
-    })
-
-    const deleteWebhookMutation = useMutation({
-        mutationFn: (id: string) => settingsApi.deleteWebhook(id),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['webhooks'] })
-            toast({ description: 'Webhook removido com sucesso.' })
-        },
-        onError: () => {
-            toast({ description: 'Falha ao remover webhook.', variant: 'destructive' })
-        },
-    })
-
     const updateThreshold = (key: keyof RiskSettings['thresholds'], value: number) => {
         setSettings((prev) => ({
             ...prev,
@@ -287,10 +117,7 @@ export function SettingsPage() {
     }
 
     const updateSecurityMode = (value: RiskSettings['security_mode']) => {
-        setSettings((prev) => ({
-            ...prev,
-            security_mode: value,
-        }))
+        setSettings((prev) => ({ ...prev, security_mode: value }))
         setHasChanges(true)
     }
 
@@ -326,50 +153,6 @@ export function SettingsPage() {
             toast({ description: t.settings.security.saveError, variant: 'destructive' })
         }
     }
-
-    const addWebhook = () => {
-        if (!newWebhookUrl) return
-        createWebhookMutation.mutate({
-            url: newWebhookUrl,
-            events: newWebhookEvents,
-        })
-    }
-
-    const saveWebhookEdit = () => {
-        if (!editingWebhook || !editWebhookUrl || editWebhookEvents.length === 0) return
-        updateWebhookMutation.mutate({
-            id: editingWebhook.id,
-            data: {
-                url: editWebhookUrl,
-                events: editWebhookEvents,
-            },
-        })
-    }
-
-    const deleteWebhook = (id: string) => {
-        deleteWebhookMutation.mutate(id)
-    }
-
-    const openEditWebhook = (webhook: WebhookType) => {
-        setEditingWebhook(webhook)
-        setEditWebhookUrl(webhook.url)
-        setEditWebhookEvents(webhook.events)
-    }
-
-    const toggleWebhookEvent = (
-        event: WebhookEvent,
-        setSelectedEvents: (
-            value: WebhookEvent[] | ((prev: WebhookEvent[]) => WebhookEvent[])
-        ) => void
-    ) => {
-        setSelectedEvents((prev) =>
-            prev.includes(event)
-                ? prev.filter((currentEvent) => currentEvent !== event)
-                : [...prev, event]
-        )
-    }
-
-    const webhooks = webhooksQuery.data ?? []
 
     return (
         <div className="space-y-6">
@@ -472,166 +255,6 @@ export function SettingsPage() {
 
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Webhook className="h-5 w-5" />
-                            <CardTitle className="text-lg">{t.settings.webhooks.title}</CardTitle>
-                        </div>
-                        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button size="sm">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    {t.settings.webhooks.addWebhook}
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>{t.settings.webhooks.addWebhook}</DialogTitle>
-                                    <DialogDescription>
-                                        {t.settings.webhooks.description}
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">
-                                            {t.settings.webhooks.url}
-                                        </label>
-                                        <Input
-                                            placeholder="https://api.example.com/webhook"
-                                            value={newWebhookUrl}
-                                            onChange={(e) => setNewWebhookUrl(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">
-                                            {t.settings.webhooks.events}
-                                        </label>
-                                        <div className="flex gap-2 flex-wrap">
-                                            {WEBHOOK_EVENT_OPTIONS.map((event) => (
-                                                <Badge
-                                                    key={event.value}
-                                                    variant={
-                                                        newWebhookEvents.includes(event.value)
-                                                            ? 'default'
-                                                            : 'outline'
-                                                    }
-                                                    className="cursor-pointer"
-                                                    onClick={() => {
-                                                        toggleWebhookEvent(
-                                                            event.value,
-                                                            setNewWebhookEvents
-                                                        )
-                                                    }}
-                                                >
-                                                    {event.label}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button
-                                        onClick={addWebhook}
-                                        disabled={!newWebhookUrl || newWebhookEvents.length === 0}
-                                    >
-                                        {t.common.create}
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
-                    <CardDescription>{t.settings.webhooks.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    {webhooks.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-8">
-                            {t.settings.webhooks.noWebhooks}
-                        </p>
-                    ) : (
-                        webhooks.map((webhook) => (
-                            <WebhookItem
-                                key={webhook.id}
-                                webhook={webhook}
-                                onToggleActive={(active) =>
-                                    updateWebhookMutation.mutate({
-                                        id: webhook.id,
-                                        data: { active },
-                                    })
-                                }
-                                onTest={() => testWebhookMutation.mutate(webhook.id)}
-                                onEdit={() => openEditWebhook(webhook)}
-                                onDelete={() => deleteWebhook(webhook.id)}
-                                isUpdating={updateWebhookMutation.isPending}
-                                isTesting={testWebhookMutation.isPending}
-                                isDeleting={deleteWebhookMutation.isPending}
-                            />
-                        ))
-                    )}
-                </CardContent>
-            </Card>
-
-            <Dialog
-                open={!!editingWebhook}
-                onOpenChange={(open) => !open && setEditingWebhook(null)}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{t.common.edit}</DialogTitle>
-                        <DialogDescription>{t.settings.webhooks.description}</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">{t.settings.webhooks.url}</label>
-                            <Input
-                                placeholder="https://api.example.com/webhook"
-                                value={editWebhookUrl}
-                                onChange={(e) => setEditWebhookUrl(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">
-                                {t.settings.webhooks.events}
-                            </label>
-                            <div className="flex gap-2 flex-wrap">
-                                {WEBHOOK_EVENT_OPTIONS.map((event) => (
-                                    <Badge
-                                        key={event.value}
-                                        variant={
-                                            editWebhookEvents.includes(event.value)
-                                                ? 'default'
-                                                : 'outline'
-                                        }
-                                        className="cursor-pointer"
-                                        onClick={() =>
-                                            toggleWebhookEvent(event.value, setEditWebhookEvents)
-                                        }
-                                    >
-                                        {event.label}
-                                    </Badge>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingWebhook(null)}>
-                            {t.common.cancel}
-                        </Button>
-                        <Button
-                            onClick={saveWebhookEdit}
-                            disabled={
-                                !editWebhookUrl ||
-                                editWebhookEvents.length === 0 ||
-                                updateWebhookMutation.isPending
-                            }
-                        >
-                            {t.common.save}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Card>
-                <CardHeader>
                     <div className="flex items-center gap-2">
                         <Shield className="h-5 w-5" />
                         <CardTitle className="text-lg">{t.settings.security.title}</CardTitle>
@@ -642,7 +265,6 @@ export function SettingsPage() {
                     <div className="space-y-2">
                         <label className="text-sm font-medium">{t.settings.security.mode}</label>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Zero-Knowledge card */}
                             <button
                                 type="button"
                                 onClick={() => updateSecurityMode('zero_knowledge')}
@@ -695,7 +317,6 @@ export function SettingsPage() {
                                 </div>
                             </button>
 
-                            {/* Encrypted card */}
                             <button
                                 type="button"
                                 onClick={() => updateSecurityMode('encrypted')}

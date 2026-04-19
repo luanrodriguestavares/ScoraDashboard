@@ -31,6 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { cn } from '@/lib/utils'
 import { rulesApi } from '@/services/api'
+import { Slider } from '@/components/ui/slider'
 import {
     Plus,
     Play,
@@ -93,36 +94,238 @@ const emptySimulationResults = {
     impactOnFalseNegatives: 0,
 }
 
-const fieldOptions = [
-    { value: 'final_score', label: 'Final Score' },
-    { value: 'validation_score', label: 'Validation Score' },
-    { value: 'history_score', label: 'History Score' },
-    { value: 'pattern_score', label: 'Pattern Score' },
-    { value: 'graph_score', label: 'Graph Score' },
-    { value: 'patterns', label: 'Patterns Detected' },
-    { value: 'is_vpn', label: 'Is VPN' },
-    { value: 'is_tor', label: 'Is Tor' },
-    { value: 'is_proxy', label: 'Is Proxy' },
-    { value: 'cluster_size', label: 'Cluster Size' },
-    { value: 'cluster_risk', label: 'Cluster Risk' },
-    { value: 'account_trust_score', label: 'Account Trust Score' },
-    { value: 'velocity_24h', label: 'Velocity (24h)' },
-    { value: 'distinct_accounts', label: 'Distinct Accounts' },
-    { value: 'validation_type', label: 'Validation Type' },
-    { value: 'geo_country', label: 'Country' },
+const PRIORITY_LEVELS = [
+    { id: 'low', label: 'Baixa', value: 10, hint: 'Executada por último' },
+    { id: 'medium', label: 'Média', value: 40, hint: 'Prioridade padrão' },
+    { id: 'high', label: 'Alta', value: 70, hint: 'Alta precedência' },
+    { id: 'critical', label: 'Crítica', value: 90, hint: 'Executada primeiro' },
+] as const
+
+function priorityToLevel(p: number): string {
+    if (p >= 80) return 'critical'
+    if (p >= 55) return 'high'
+    if (p >= 25) return 'medium'
+    return 'low'
+}
+
+type FieldType = 'score' | 'count' | 'boolean' | 'enum' | 'text'
+
+interface FieldOption {
+    value: string
+    label: string
+    description: string
+    fieldType: FieldType
+    min?: number
+    max?: number
+    step?: number
+    hint?: string
+    options?: Array<{ value: string; label: string }>
+}
+
+const fieldOptions: FieldOption[] = [
+    {
+        value: 'final_score',
+        label: 'Nível de risco',
+        description: 'Score calculado pelo motor (0 = sem risco, 1 = risco máximo)',
+        fieldType: 'score',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: 'Deslize para definir o limiar de risco',
+    },
+    {
+        value: 'validation_score',
+        label: 'Qualidade do dado',
+        description: 'Risco baseado na validade do formato submetido (0 a 1)',
+        fieldType: 'score',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: 'Deslize para definir o limiar de qualidade',
+    },
+    {
+        value: 'history_score',
+        label: 'Risco histórico',
+        description: 'Risco acumulado com base no histórico de uso deste valor (0 a 1)',
+        fieldType: 'score',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: 'Deslize para definir o limiar histórico',
+    },
+    {
+        value: 'velocity_score',
+        label: 'Risco de velocidade',
+        description: 'Risco calculado a partir da frequência de uso recente (0 a 1)',
+        fieldType: 'score',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: 'Deslize para definir o limiar de velocidade',
+    },
+    {
+        value: 'pattern_score',
+        label: 'Risco de padrão',
+        description: 'Risco baseado em padrões anômalos nos dados submetidos (0 a 1)',
+        fieldType: 'score',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: 'Deslize para definir o limiar de padrão',
+    },
+    {
+        value: 'graph_score',
+        label: 'Risco de rede',
+        description: 'Risco baseado nas conexões deste valor com outras entidades (0 a 1)',
+        fieldType: 'score',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: 'Deslize para definir o limiar de rede',
+    },
+    {
+        value: 'cluster_risk',
+        label: 'Risco do grupo',
+        description: 'Score médio de risco do grupo de identidades conectadas (0 a 1)',
+        fieldType: 'score',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: 'Deslize para definir o limiar de risco do grupo',
+    },
+    {
+        value: 'account_trust_score',
+        label: 'Confiança acumulada',
+        description: 'Score de confiança histórico desta conta (0 = baixa, 1 = alta)',
+        fieldType: 'score',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        hint: 'Deslize para definir o limiar de confiança',
+    },
+    {
+        value: 'velocity_24h',
+        label: 'Usos nas últimas 24h',
+        description: 'Número de vezes que este valor foi submetido nas últimas 24 horas',
+        fieldType: 'count',
+        min: 0,
+        max: 1000,
+        step: 1,
+        hint: 'Número inteiro — ex: 10 significa mais de 10 usos em 24h',
+    },
+    {
+        value: 'distinct_accounts',
+        label: 'Contas distintas',
+        description: 'Quantidade de contas diferentes que já usaram este mesmo valor',
+        fieldType: 'count',
+        min: 0,
+        max: 500,
+        step: 1,
+        hint: 'Número inteiro — ex: 3 significa usado em 3 contas diferentes',
+    },
+    {
+        value: 'cluster_size',
+        label: 'Tamanho do grupo',
+        description: 'Número de entidades no grupo conectado no grafo de identidade',
+        fieldType: 'count',
+        min: 0,
+        max: 1000,
+        step: 1,
+        hint: 'Número inteiro — ex: 5 significa 5 entidades conectadas',
+    },
+    {
+        value: 'is_vpn',
+        label: 'Acesso via VPN',
+        description: 'Detectado quando o acesso é realizado através de VPN',
+        fieldType: 'boolean',
+    },
+    {
+        value: 'is_tor',
+        label: 'Acesso via Tor',
+        description: 'Detectado quando o acesso é realizado via rede Tor',
+        fieldType: 'boolean',
+    },
+    {
+        value: 'is_proxy',
+        label: 'Acesso via proxy',
+        description: 'Detectado quando o acesso passa por proxy anônimo',
+        fieldType: 'boolean',
+    },
+    {
+        value: 'validation_type',
+        label: 'Tipo de dado',
+        description: 'Tipo do valor validado',
+        fieldType: 'enum',
+        options: [
+            { value: 'email', label: 'E-mail' },
+            { value: 'cpf', label: 'CPF' },
+            { value: 'cnpj', label: 'CNPJ' },
+            { value: 'phone', label: 'Telefone' },
+            { value: 'ip', label: 'Endereço IP' },
+            { value: 'cnh', label: 'CNH' },
+            { value: 'rg', label: 'RG' },
+            { value: 'pis_pasep', label: 'PIS/PASEP' },
+            { value: 'passport', label: 'Passaporte' },
+            { value: 'creditcard', label: 'Cartão de crédito' },
+        ],
+    },
+    {
+        value: 'use_case',
+        label: 'Caso de uso',
+        description: 'Contexto declarado da validação',
+        fieldType: 'enum',
+        options: [
+            { value: 'signup', label: 'Cadastro (signup)' },
+            { value: 'login', label: 'Login' },
+            { value: 'checkout', label: 'Checkout' },
+            { value: 'kyc', label: 'Verificação de identidade (KYC)' },
+            { value: 'update', label: 'Atualização de dados' },
+            { value: 'recovery', label: 'Recuperação de conta' },
+        ],
+    },
+    {
+        value: 'geo_country',
+        label: 'País de acesso',
+        description: 'Código ISO do país detectado no acesso',
+        fieldType: 'text',
+        hint: 'Use o código de 2 letras — ex: BR, US, DE, AR',
+    },
+    {
+        value: 'patterns',
+        label: 'Padrões suspeitos',
+        description: 'Flags de padrões anômalos identificados na análise',
+        fieldType: 'text',
+        hint: 'Ex: high_velocity, cross_account_reuse, tor_detected',
+    },
 ]
 
-const operatorOptions = [
-    { value: '>', label: '>' },
-    { value: '<', label: '<' },
-    { value: '>=', label: '>=' },
-    { value: '<=', label: '<=' },
-    { value: '==', label: '==' },
-    { value: '!=', label: '!=' },
-    { value: 'contains', label: 'contains' },
-    { value: 'in', label: 'in' },
-    { value: 'not_in', label: 'not in' },
+const allOperatorOptions = [
+    { value: '>', label: 'maior que', symbol: '>' },
+    { value: '<', label: 'menor que', symbol: '<' },
+    { value: '>=', label: 'maior ou igual a', symbol: '>=' },
+    { value: '<=', label: 'menor ou igual a', symbol: '<=' },
+    { value: '==', label: 'igual a', symbol: '==' },
+    { value: '!=', label: 'diferente de', symbol: '!=' },
+    { value: 'contains', label: 'contém', symbol: '∋' },
+    { value: 'in', label: 'está na lista', symbol: 'in' },
+    { value: 'not_in', label: 'não está na lista', symbol: '∉' },
 ]
+
+function getOperatorsForField(fieldType: FieldType) {
+    if (fieldType === 'boolean') return allOperatorOptions.filter((o) => ['==', '!='].includes(o.value))
+    if (fieldType === 'score' || fieldType === 'count')
+        return allOperatorOptions.filter((o) => ['>', '<', '>=', '<=', '==', '!='].includes(o.value))
+    return allOperatorOptions.filter((o) => ['==', '!=', 'contains', 'in', 'not_in'].includes(o.value))
+}
+
+function getDefaultValueForField(fieldType: FieldType): string | number {
+    if (fieldType === 'score') return 0.5
+    if (fieldType === 'count') return 5
+    if (fieldType === 'boolean') return 'true'
+    return ''
+}
+
+const operatorOptions = allOperatorOptions
 
 const actionOptions = [
     { value: 'block', label: 'Block', icon: XCircle, color: 'text-decision-block' },
@@ -131,6 +334,75 @@ const actionOptions = [
     { value: 'escalate', label: 'Escalate', icon: ArrowUpDown, color: 'text-purple-500' },
     { value: 'webhook', label: 'Webhook', icon: Zap, color: 'text-blue-500' },
 ]
+
+const RULE_TEMPLATES = [
+    {
+        label: 'Bloquear Alto Risco',
+        description: 'Bloqueia automaticamente quando o risco calculado for crítico',
+        conditions: [{ id: 'c1', field: 'final_score', operator: '>=', value: 0.85 }],
+        action: 'block' as const,
+        priority: 90,
+    },
+    {
+        label: 'Revisar VPN + Risco Médio',
+        description: 'Envia para revisão quando há VPN com risco moderado',
+        conditions: [
+            { id: 'c1', field: 'is_vpn', operator: '==', value: 'true' },
+            { id: 'c2', field: 'final_score', operator: '>=', value: 0.5, logicalOperator: 'AND' as const },
+        ],
+        action: 'review' as const,
+        priority: 70,
+    },
+    {
+        label: 'Bloquear Reuso Excessivo',
+        description: 'Bloqueia quando o mesmo dado aparece em muitas contas distintas',
+        conditions: [{ id: 'c1', field: 'distinct_accounts', operator: '>=', value: 5 }],
+        action: 'block' as const,
+        priority: 80,
+    },
+    {
+        label: 'Revisar Alta Velocidade',
+        description: 'Envia para revisão quando há volume atípico de uso em 24h',
+        conditions: [{ id: 'c1', field: 'velocity_24h', operator: '>=', value: 20 }],
+        action: 'review' as const,
+        priority: 60,
+    },
+    {
+        label: 'Bloquear Rede Suspeita',
+        description: 'Bloqueia quando o grupo de identidades conectadas tem alto risco',
+        conditions: [{ id: 'c1', field: 'cluster_risk', operator: '>=', value: 0.7 }],
+        action: 'block' as const,
+        priority: 85,
+    },
+    {
+        label: 'Revisar Acesso via Tor',
+        description: 'Revisa todos os acessos realizados via rede Tor',
+        conditions: [{ id: 'c1', field: 'is_tor', operator: '==', value: 'true' }],
+        action: 'review' as const,
+        priority: 75,
+    },
+] satisfies Array<{
+    label: string
+    description: string
+    conditions: RuleCondition[]
+    action: RuleAction['type']
+    priority: number
+}>
+
+const fieldLabelMap = Object.fromEntries(fieldOptions.map((f) => [f.value, f.label]))
+const operatorLabelMap = Object.fromEntries(operatorOptions.map((o) => [o.value, o.label]))
+
+function buildConditionPreview(conditions: RuleCondition[]): string {
+    if (conditions.length === 0) return ''
+    const parts = conditions.map((c, i) => {
+        const field = fieldLabelMap[c.field] ?? c.field
+        const op = operatorLabelMap[c.operator] ?? c.operator
+        const val = String(c.value)
+        const connector = i > 0 ? (c.logicalOperator === 'OR' ? ' OU ' : ' E ') : ''
+        return `${connector}${field} for ${op} ${val}`
+    })
+    return `SE ${parts.join('')} → `
+}
 
 interface RuleCardProps {
     rule: Rule
@@ -266,7 +538,7 @@ function ConditionBuilder({ conditions, onChange }: ConditionBuilderProps) {
         const newCondition: RuleCondition = {
             id: `c${Date.now()}`,
             field: 'final_score',
-            operator: '>',
+            operator: '>=',
             value: 0.5,
             logicalOperator: conditions.length > 0 ? 'AND' : undefined,
         }
@@ -285,93 +557,229 @@ function ConditionBuilder({ conditions, onChange }: ConditionBuilderProps) {
         onChange(updated)
     }
 
+    const handleFieldChange = (conditionId: string, fieldValue: string) => {
+        const fieldMeta = fieldOptions.find((f) => f.value === fieldValue)
+        if (!fieldMeta) return
+        const availableOps = getOperatorsForField(fieldMeta.fieldType)
+        const defaultOp = availableOps[0].value as RuleCondition['operator']
+        const defaultVal = getDefaultValueForField(fieldMeta.fieldType)
+        updateCondition(conditionId, { field: fieldValue, operator: defaultOp, value: defaultVal })
+    }
+
+    const preview = buildConditionPreview(conditions)
+
     return (
-        <div className="space-y-3">
-            {conditions.map((condition, index) => (
-                <div key={condition.id} className="flex items-center gap-2">
-                    {index > 0 && (
-                        <Select
-                            value={condition.logicalOperator || 'AND'}
-                            onValueChange={(v) =>
-                                updateCondition(condition.id, {
-                                    logicalOperator: v as 'AND' | 'OR',
-                                })
-                            }
-                        >
-                            <SelectTrigger className="w-20">
-                                <SelectValue placeholder="Operador" />
-                            </SelectTrigger>
-                            <SelectContent side="bottom" align="start">
-                                <SelectItem value="AND">AND</SelectItem>
-                                <SelectItem value="OR">OR</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    )}
+        <div className="space-y-4">
+            {conditions.map((condition, index) => {
+                const fieldMeta = fieldOptions.find((f) => f.value === condition.field)
+                const availableOps = fieldMeta
+                    ? getOperatorsForField(fieldMeta.fieldType)
+                    : allOperatorOptions
+                const currentValue = Number(condition.value)
+                const numValue = isNaN(currentValue) ? 0 : currentValue
 
-                    <Select
-                        value={condition.field || ''}
-                        onValueChange={(v) => updateCondition(condition.id, { field: v })}
-                    >
-                        <SelectTrigger className="w-40">
-                            <SelectValue placeholder="Campo" />
-                        </SelectTrigger>
-                        <SelectContent side="bottom" align="start">
-                            {fieldOptions.map((f) => (
-                                <SelectItem key={f.value} value={f.value}>
-                                    {f.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                return (
+                    <div key={condition.id} className="rounded-lg border border-border/60 bg-muted/10 p-3 space-y-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {index > 0 && (
+                                <Select
+                                    value={condition.logicalOperator || 'AND'}
+                                    onValueChange={(v) =>
+                                        updateCondition(condition.id, {
+                                            logicalOperator: v as 'AND' | 'OR',
+                                        })
+                                    }
+                                >
+                                    <SelectTrigger className="w-20 h-8 text-xs">
+                                        <SelectValue placeholder="E / OU" />
+                                    </SelectTrigger>
+                                    <SelectContent side="bottom" align="start">
+                                        <SelectItem value="AND">E</SelectItem>
+                                        <SelectItem value="OR">OU</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            )}
 
-                    <Select
-                        value={condition.operator || '=='}
-                        onValueChange={(v) =>
-                            updateCondition(condition.id, {
-                                operator: v as RuleCondition['operator'],
-                            })
-                        }
-                    >
-                        <SelectTrigger className="w-24">
-                            <SelectValue placeholder="Op." />
-                        </SelectTrigger>
-                        <SelectContent side="bottom" align="start">
-                            {operatorOptions.map((o) => (
-                                <SelectItem key={o.value} value={o.value}>
-                                    {o.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                            <Select
+                                value={condition.field || ''}
+                                onValueChange={(v) => handleFieldChange(condition.id, v)}
+                            >
+                                <SelectTrigger className="w-52 h-8 text-xs">
+                                    <SelectValue placeholder="Escolha um campo..." />
+                                </SelectTrigger>
+                                <SelectContent side="bottom" align="start">
+                                    {fieldOptions.map((f) => (
+                                        <SelectItem key={f.value} value={f.value}>
+                                            {f.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
 
-                    <Input
-                        value={String(condition.value)}
-                        onChange={(e) =>
-                            updateCondition(condition.id, {
-                                value: isNaN(Number(e.target.value))
-                                    ? e.target.value
-                                    : Number(e.target.value),
-                            })
-                        }
-                        className="w-32"
-                        placeholder="Valor"
-                    />
+                            <Select
+                                value={condition.operator || '=='}
+                                onValueChange={(v) =>
+                                    updateCondition(condition.id, {
+                                        operator: v as RuleCondition['operator'],
+                                    })
+                                }
+                            >
+                                <SelectTrigger className="w-40 h-8 text-xs">
+                                    <SelectValue placeholder="Condição" />
+                                </SelectTrigger>
+                                <SelectContent side="bottom" align="start">
+                                    {availableOps.map((o) => (
+                                        <SelectItem key={o.value} value={o.value}>
+                                            <span className="flex items-center gap-2">
+                                                <span className="font-mono text-xs text-muted-foreground w-6">
+                                                    {o.symbol}
+                                                </span>
+                                                {o.label}
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
 
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeCondition(condition.id)}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </div>
-            ))}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeCondition(condition.id)}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive ml-auto"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+
+                        {/* Value input — adaptive by field type */}
+                        {fieldMeta?.fieldType === 'score' && (
+                            <div className="space-y-2 px-1">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs text-muted-foreground">{fieldMeta.hint}</p>
+                                    <span className="text-sm font-semibold tabular-nums text-primary min-w-[3rem] text-right">
+                                        {numValue.toFixed(2)}
+                                        <span className="text-xs text-muted-foreground ml-1">
+                                            ({Math.round(numValue * 100)}%)
+                                        </span>
+                                    </span>
+                                </div>
+                                <Slider
+                                    value={[numValue]}
+                                    min={0}
+                                    max={1}
+                                    step={0.01}
+                                    onValueChange={([v]) =>
+                                        updateCondition(condition.id, { value: v })
+                                    }
+                                    className="w-full"
+                                />
+                                <div className="flex justify-between text-[10px] text-muted-foreground">
+                                    <span>0 — sem risco</span>
+                                    <span>1 — risco máximo</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {fieldMeta?.fieldType === 'count' && (
+                            <div className="space-y-1.5">
+                                <p className="text-xs text-muted-foreground px-1">{fieldMeta.hint}</p>
+                                <Input
+                                    type="number"
+                                    value={String(condition.value)}
+                                    min={fieldMeta.min ?? 0}
+                                    max={fieldMeta.max}
+                                    step={fieldMeta.step ?? 1}
+                                    onChange={(e) => {
+                                        const v = parseInt(e.target.value, 10)
+                                        if (!isNaN(v) && v >= 0)
+                                            updateCondition(condition.id, { value: v })
+                                    }}
+                                    className="h-8 text-sm"
+                                    placeholder={`Número inteiro (mín ${fieldMeta.min ?? 0})`}
+                                />
+                            </div>
+                        )}
+
+                        {fieldMeta?.fieldType === 'boolean' && (
+                            <Select
+                                value={String(condition.value)}
+                                onValueChange={(v) => updateCondition(condition.id, { value: v })}
+                            >
+                                <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent side="bottom" align="start">
+                                    <SelectItem value="true">
+                                        <span className="flex items-center gap-2">
+                                            <span className="text-emerald-500 font-medium">Sim</span>
+                                            <span className="text-muted-foreground text-xs">— detectado</span>
+                                        </span>
+                                    </SelectItem>
+                                    <SelectItem value="false">
+                                        <span className="flex items-center gap-2">
+                                            <span className="text-muted-foreground font-medium">Não</span>
+                                            <span className="text-muted-foreground text-xs">— não detectado</span>
+                                        </span>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+
+                        {fieldMeta?.fieldType === 'enum' && fieldMeta.options && (
+                            <Select
+                                value={String(condition.value)}
+                                onValueChange={(v) => updateCondition(condition.id, { value: v })}
+                            >
+                                <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue placeholder="Selecione uma opção..." />
+                                </SelectTrigger>
+                                <SelectContent side="bottom" align="start">
+                                    {fieldMeta.options.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+
+                        {(fieldMeta?.fieldType === 'text' || !fieldMeta) && (
+                            <div className="space-y-1.5">
+                                {fieldMeta?.hint && (
+                                    <p className="text-xs text-muted-foreground px-1">
+                                        {fieldMeta.hint}
+                                    </p>
+                                )}
+                                <Input
+                                    value={String(condition.value)}
+                                    onChange={(e) =>
+                                        updateCondition(condition.id, { value: e.target.value })
+                                    }
+                                    className="h-8 text-sm"
+                                    placeholder="Digite o valor..."
+                                />
+                            </div>
+                        )}
+                    </div>
+                )
+            })}
 
             <Button variant="outline" size="sm" onClick={addCondition}>
                 <Plus className="h-4 w-4 mr-1" />
                 {t.rules.addCondition}
             </Button>
+
+            {preview && (
+                <div className="rounded-lg bg-muted/40 border border-border/60 px-3 py-2 mt-1">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+                        Leitura da regra
+                    </p>
+                    <p className="text-xs text-foreground leading-relaxed font-medium">
+                        {preview}
+                        <span className="text-muted-foreground font-normal">ação definida abaixo</span>
+                    </p>
+                </div>
+            )}
         </div>
     )
 }
@@ -385,59 +793,83 @@ function SimulationResults({ results, onClose }: SimulationResultsProps) {
     const { t } = useLanguage()
     const triggerRate =
         results.totalDecisions > 0
-            ? ((results.wouldTrigger / results.totalDecisions) * 100).toFixed(2)
-            : '0.00'
+            ? ((results.wouldTrigger / results.totalDecisions) * 100).toFixed(1)
+            : '0.0'
+
+    const fp = results.impactOnFalsePositives
+    const fn = results.impactOnFalseNegatives
+    const interpretation =
+        fp <= 0 && fn <= 0
+            ? {
+                  color: 'text-decision-allow',
+                  bg: 'bg-decision-allow/10 border-decision-allow/20',
+                  text: 'Esta regra melhora ambas as métricas: menos bloqueios indevidos e menos fraudes passando.',
+              }
+            : fp < 0
+              ? {
+                    color: 'text-amber-500',
+                    bg: 'bg-amber-500/10 border-amber-500/20',
+                    text: 'Esta regra reduz bloqueios indevidos, mas pode deixar mais fraudes passarem. Avalie o tradeoff.',
+                }
+              : fn < 0
+                ? {
+                      color: 'text-amber-500',
+                      bg: 'bg-amber-500/10 border-amber-500/20',
+                      text: 'Esta regra captura mais fraudes, mas pode bloquear mais usuários legítimos. Avalie o tradeoff.',
+                  }
+                : {
+                      color: 'text-decision-block',
+                      bg: 'bg-decision-block/10 border-decision-block/20',
+                      text: 'Esta regra piora ambas as métricas. Revise as condições antes de ativar.',
+                  }
+
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
                 <Card>
                     <CardContent className="p-4">
-                        <p className="text-sm text-muted-foreground">
-                            {t.rules?.totalDecisionsAnalyzed || 'Total Decisions Analyzed'}
-                        </p>
+                        <p className="text-sm text-muted-foreground">Decisões analisadas</p>
                         <p className="text-2xl font-bold">
                             {results.totalDecisions.toLocaleString()}
                         </p>
+                        <p className="text-xs text-muted-foreground">últimos 30 dias</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardContent className="p-4">
-                        <p className="text-sm text-muted-foreground">
-                            {t.rules?.wouldTrigger || 'Would Trigger'}
-                        </p>
+                        <p className="text-sm text-muted-foreground">Seriam afetadas</p>
                         <p className="text-2xl font-bold text-primary">
                             {results.wouldTrigger.toLocaleString()}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                            {triggerRate}% {t.rules?.ofDecisions || 'of decisions'}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{triggerRate}% do total</p>
                     </CardContent>
                 </Card>
             </div>
 
             <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">
-                        {t.rules?.impactBreakdown || 'Impact Breakdown'}
-                    </CardTitle>
+                    <CardTitle className="text-sm">Distribuição de decisões</CardTitle>
+                    <CardDescription className="text-xs">
+                        Como ficariam as decisões se a regra estivesse ativa
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm">{t.overview?.allow || 'Allow'}</span>
-                            <span className="font-mono">
+                            <span className="text-sm text-decision-allow">Aprovadas</span>
+                            <span className="font-mono text-sm">
                                 {results.breakdown.allow.toLocaleString()}
                             </span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-sm">{t.overview?.review || 'Review'}</span>
-                            <span className="font-mono">
+                            <span className="text-sm text-decision-review">Para revisão</span>
+                            <span className="font-mono text-sm">
                                 {results.breakdown.review.toLocaleString()}
                             </span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-sm">{t.overview?.block || 'Block'}</span>
-                            <span className="font-mono">
+                            <span className="text-sm text-decision-block">Bloqueadas</span>
+                            <span className="font-mono text-sm">
                                 {results.breakdown.block.toLocaleString()}
                             </span>
                         </div>
@@ -447,50 +879,59 @@ function SimulationResults({ results, onClose }: SimulationResultsProps) {
 
             <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">
-                        {t.rules?.estimatedImpact || 'Estimated Impact on Metrics'}
-                    </CardTitle>
+                    <CardTitle className="text-sm">Impacto estimado na precisão</CardTitle>
+                    <CardDescription className="text-xs">
+                        Variação esperada em relação ao comportamento atual do motor
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm">
-                                {t.rules?.falsePositives || 'False Positives'}
-                            </span>
+                    <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <p className="text-sm font-medium">Usuários legítimos bloqueados</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Bloqueios indevidos — pessoas reais que seriam barradas
+                                </p>
+                            </div>
                             <span
                                 className={cn(
-                                    'font-mono',
-                                    results.impactOnFalsePositives < 0
-                                        ? 'text-decision-allow'
-                                        : 'text-decision-block'
+                                    'font-mono text-sm font-semibold shrink-0',
+                                    fp < 0 ? 'text-decision-allow' : 'text-decision-block'
                                 )}
                             >
-                                {results.impactOnFalsePositives > 0 ? '+' : ''}
-                                {results.impactOnFalsePositives}%
+                                {fp > 0 ? '+' : ''}
+                                {fp}%
                             </span>
                         </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm">
-                                {t.rules?.falseNegatives || 'False Negatives'}
-                            </span>
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <p className="text-sm font-medium">Fraudes não detectadas</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Fraudes que passariam sem detecção com esta regra
+                                </p>
+                            </div>
                             <span
                                 className={cn(
-                                    'font-mono',
-                                    results.impactOnFalseNegatives < 0
-                                        ? 'text-decision-allow'
-                                        : 'text-decision-block'
+                                    'font-mono text-sm font-semibold shrink-0',
+                                    fn < 0 ? 'text-decision-allow' : 'text-decision-block'
                                 )}
                             >
-                                {results.impactOnFalseNegatives > 0 ? '+' : ''}
-                                {results.impactOnFalseNegatives}%
+                                {fn > 0 ? '+' : ''}
+                                {fn}%
                             </span>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
+            <div className={cn('rounded-lg border px-3 py-2.5', interpretation.bg)}>
+                <p className={cn('text-xs font-medium', interpretation.color)}>
+                    {interpretation.text}
+                </p>
+            </div>
+
             <div className="flex justify-end">
-                <Button onClick={onClose}>{t.commandPalette?.close || 'Close'}</Button>
+                <Button onClick={onClose}>{t.commandPalette?.close || 'Fechar'}</Button>
             </div>
         </div>
     )
@@ -507,6 +948,10 @@ export function RulesEnginePage() {
     const [editingRule, setEditingRule] = useState<Rule | null>(null)
     const [filter, setFilter] = useState<'all' | 'active' | 'disabled' | 'ab_test'>('all')
 
+    const [showTemplates, setShowTemplates] = useState(false)
+    const [simContext, setSimContext] = useState<'create' | 'edit' | 'card'>('card')
+    const [createSimResults, setCreateSimResults] = useState<typeof emptySimulationResults | null>(null)
+    const [editSimResults, setEditSimResults] = useState<typeof emptySimulationResults | null>(null)
     const [newRuleName, setNewRuleName] = useState('')
     const [newRuleDescription, setNewRuleDescription] = useState('')
     const [newRuleConditions, setNewRuleConditions] = useState<RuleCondition[]>([
@@ -557,8 +1002,12 @@ export function RulesEnginePage() {
     const simulateMutation = useMutation({
         mutationFn: (payload: any) => rulesApi.simulate(payload),
         onSuccess: (data) => {
-            setSimulationResults(data)
-            setIsSimulateOpen(true)
+            if (simContext === 'create') setCreateSimResults(data)
+            else if (simContext === 'edit') setEditSimResults(data)
+            else {
+                setSimulationResults(data)
+                setIsSimulateOpen(true)
+            }
         },
     })
 
@@ -582,6 +1031,15 @@ export function RulesEnginePage() {
             return true
         })
         .sort((a, b) => b.priority - a.priority)
+
+    const handleApplyTemplate = (tpl: (typeof RULE_TEMPLATES)[number]) => {
+        setNewRuleName(tpl.label)
+        setNewRuleDescription(tpl.description)
+        setNewRuleConditions(tpl.conditions)
+        setNewRuleAction(tpl.action)
+        setNewRulePriority(tpl.priority)
+        setShowTemplates(false)
+    }
 
     const handleToggle = (id: string) => {
         const rule = rules.find((r) => r.id === id)
@@ -706,29 +1164,105 @@ export function RulesEnginePage() {
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/30 hover:scrollbar-thumb-muted-foreground/50">
                         <DialogHeader>
-                            <DialogTitle>{t.rules?.newRule || 'New Rule'}</DialogTitle>
+                            <DialogTitle>{t.rules?.newRule || 'Nova Regra'}</DialogTitle>
                             <DialogDescription>
                                 {t.rules?.newRuleDescription ||
-                                    'Define conditions and actions for your rule'}
+                                    'Defina condições e ações para sua regra de risco'}
                             </DialogDescription>
                         </DialogHeader>
 
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">
-                                    {t.rules?.name || 'Nome'}
-                                </label>
-                                <Input
-                                    value={newRuleName}
-                                    onChange={(e) => setNewRuleName(e.target.value)}
-                                    placeholder="Ex: Bloqueio de Alto Risco"
+                        <div className="border rounded-lg overflow-hidden">
+                            <button
+                                type="button"
+                                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium hover:bg-muted/50 transition-colors text-left"
+                                onClick={() => setShowTemplates((v) => !v)}
+                            >
+                                <span className="flex items-center gap-2">
+                                    <FlaskConical className="h-4 w-4 text-muted-foreground" />
+                                    Começar com um template pronto
+                                </span>
+                                <ChevronRight
+                                    className={cn(
+                                        'h-4 w-4 text-muted-foreground transition-transform',
+                                        showTemplates && 'rotate-90'
+                                    )}
                                 />
+                            </button>
+                            {showTemplates && (
+                                <div className="border-t divide-y">
+                                    {RULE_TEMPLATES.map((tpl) => {
+                                        const actionCfg = actionOptions.find(
+                                            (a) => a.value === tpl.action
+                                        )
+                                        const ActionIcon = actionCfg?.icon ?? Zap
+                                        return (
+                                            <button
+                                                key={tpl.label}
+                                                type="button"
+                                                className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-muted/40 transition-colors text-left"
+                                                onClick={() => handleApplyTemplate(tpl)}
+                                            >
+                                                <ActionIcon
+                                                    className={cn(
+                                                        'h-4 w-4 mt-0.5 shrink-0',
+                                                        actionCfg?.color ?? 'text-muted-foreground'
+                                                    )}
+                                                />
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium">
+                                                        {tpl.label}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                        {tpl.description}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-4 py-4">
+                            {/* Nome + Prioridade lado a lado */}
+                            <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium">Nome</label>
+                                    <Input
+                                        value={newRuleName}
+                                        onChange={(e) => setNewRuleName(e.target.value)}
+                                        placeholder="Ex: Bloquear Alto Risco com VPN"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium">Prioridade</label>
+                                    <div className="flex gap-1.5">
+                                        {PRIORITY_LEVELS.map((p) => (
+                                            <button
+                                                key={p.id}
+                                                type="button"
+                                                onClick={() => setNewRulePriority(p.value)}
+                                                className={cn(
+                                                    'px-2.5 py-1.5 rounded-md border text-xs transition-colors min-w-[56px] text-center',
+                                                    priorityToLevel(newRulePriority) === p.id
+                                                        ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                                        : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
+                                                )}
+                                            >
+                                                {p.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {PRIORITY_LEVELS.find(
+                                            (p) => p.id === priorityToLevel(newRulePriority)
+                                        )?.hint}
+                                    </p>
+                                </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">
-                                    {t.rules?.name || 'Descrição'}
-                                </label>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium">Descrição</label>
                                 <Input
                                     value={newRuleDescription}
                                     onChange={(e) => setNewRuleDescription(e.target.value)}
@@ -737,62 +1271,43 @@ export function RulesEnginePage() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">
-                                    {t.rules?.priority || 'Prioridade'} (maior = maior prioridade)
-                                </label>
-                                <Input
-                                    type="number"
-                                    value={newRulePriority}
-                                    onChange={(e) => setNewRulePriority(Number(e.target.value))}
-                                    min={0}
-                                    max={100}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">
-                                    {t.rules?.conditions || 'Condições'} (SE)
-                                </label>
+                                <label className="text-sm font-medium">Condições (SE)</label>
                                 <ConditionBuilder
                                     conditions={newRuleConditions}
                                     onChange={setNewRuleConditions}
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">
-                                    {t.rules?.actions || 'Ações (ENTÃO)'}
-                                </label>
-                                <Select
-                                    value={newRuleAction || ''}
-                                    onValueChange={(v) => setNewRuleAction(v as RuleAction['type'])}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecione uma ação" />
-                                    </SelectTrigger>
-                                    <SelectContent side="bottom" align="start">
-                                        {actionOptions.map((a) => (
-                                            <SelectItem key={a.value} value={a.value}>
-                                                <div className="flex items-center gap-2">
-                                                    <a.icon className={cn('h-4 w-4', a.color)} />
-                                                    {a.label}
-                                                </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium">Ação (ENTÃO)</label>
+                                <div className="grid grid-cols-5 gap-1.5">
+                                    {actionOptions.map((a) => (
+                                        <button
+                                            key={a.value}
+                                            type="button"
+                                            onClick={() => setNewRuleAction(a.value as RuleAction['type'])}
+                                            className={cn(
+                                                'flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border text-xs transition-colors',
+                                                newRuleAction === a.value
+                                                    ? 'border-primary bg-primary/10'
+                                                    : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
+                                            )}
+                                        >
+                                            <a.icon className={cn('h-4 w-4', newRuleAction === a.value ? a.color : '')} />
+                                            <span className={newRuleAction === a.value ? 'font-semibold text-foreground' : ''}>
+                                                {a.label}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
-                            <div className="border rounded-lg p-4 space-y-3">
+                            <div className="border rounded-lg p-3 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <label className="text-sm font-medium">
-                                            {t.rules?.abTesting || 'Teste A/B'}
-                                        </label>
+                                        <label className="text-sm font-medium">Teste A/B</label>
                                         <p className="text-xs text-muted-foreground">
-                                            {t.rules?.trafficPercentage
-                                                ? 'Teste esta regra em uma porcentagem do tráfego'
-                                                : 'Test this rule on a percentage of traffic'}
+                                            Aplica a regra em apenas uma parte do tráfego
                                         </p>
                                     </div>
                                     <Switch
@@ -801,22 +1316,86 @@ export function RulesEnginePage() {
                                     />
                                 </div>
                                 {enableAbTest && (
-                                    <div className="space-y-2">
-                                        <label className="text-sm">
-                                            {t.rules?.trafficPercentage || 'Traffic Percentage'}
+                                    <div className="flex items-center gap-3">
+                                        <label className="text-sm text-muted-foreground shrink-0">
+                                            % do tráfego
                                         </label>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                type="number"
-                                                value={abTestPercentage}
-                                                onChange={(e) =>
-                                                    setAbTestPercentage(Number(e.target.value))
-                                                }
-                                                min={1}
-                                                max={99}
-                                                className="w-24"
+                                        <Input
+                                            type="number"
+                                            value={abTestPercentage}
+                                            onChange={(e) =>
+                                                setAbTestPercentage(Number(e.target.value))
+                                            }
+                                            min={1}
+                                            max={99}
+                                            className="w-24 h-8"
+                                        />
+                                        <span className="text-sm text-muted-foreground">%</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Simulação inline — sem Dialog aninhado */}
+                            <div className="space-y-2">
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-xs"
+                                        disabled={simulateMutation.isPending}
+                                        onClick={() => {
+                                            setSimContext('create')
+                                            setCreateSimResults(null)
+                                            simulateMutation.mutate({})
+                                        }}
+                                    >
+                                        <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
+                                        Simular baseline (30d)
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-xs"
+                                        disabled={newRuleConditions.length === 0 || simulateMutation.isPending}
+                                        onClick={() => {
+                                            setSimContext('create')
+                                            setCreateSimResults(null)
+                                            simulateMutation.mutate(
+                                                buildSimulationPayload({
+                                                    name: newRuleName || 'Nova Regra',
+                                                    description: newRuleDescription,
+                                                    conditions: newRuleConditions,
+                                                    action: { type: newRuleAction },
+                                                    priority: newRulePriority,
+                                                    enabled: true,
+                                                    abTest: enableAbTest
+                                                        ? { enabled: true, variant: 'A', trafficPercentage: abTestPercentage }
+                                                        : undefined,
+                                                })
+                                            )
+                                        }}
+                                    >
+                                        <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
+                                        Simular esta regra
+                                    </Button>
+                                </div>
+                                {createSimResults && (
+                                    <div className="border rounded-lg overflow-hidden">
+                                        <div className="flex items-center justify-between px-3 py-2 bg-muted/30 border-b">
+                                            <p className="text-xs font-medium">Resultado da simulação</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCreateSimResults(null)}
+                                                className="text-muted-foreground hover:text-foreground text-xs"
+                                            >
+                                                Fechar
+                                            </button>
+                                        </div>
+                                        <div className="p-3">
+                                            <SimulationResults
+                                                results={createSimResults}
+                                                onClose={() => setCreateSimResults(null)}
                                             />
-                                            <span className="text-sm text-muted-foreground">%</span>
                                         </div>
                                     </div>
                                 )}
@@ -824,44 +1403,14 @@ export function RulesEnginePage() {
                         </div>
 
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-                                {t.common?.cancel || 'Cancel'}
-                            </Button>
-                            <Button variant="outline" onClick={() => simulateMutation.mutate({})}>
-                                <FlaskConical className="h-4 w-4 mr-2" />
-                                Baseline 30d
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() =>
-                                    simulateMutation.mutate(
-                                        buildSimulationPayload({
-                                            name: newRuleName || 'New Rule',
-                                            description: newRuleDescription,
-                                            conditions: newRuleConditions,
-                                            action: { type: newRuleAction },
-                                            priority: newRulePriority,
-                                            enabled: true,
-                                            abTest: enableAbTest
-                                                ? {
-                                                      enabled: true,
-                                                      variant: 'A',
-                                                      trafficPercentage: abTestPercentage,
-                                                  }
-                                                : undefined,
-                                        })
-                                    )
-                                }
-                                disabled={newRuleConditions.length === 0}
-                            >
-                                <FlaskConical className="h-4 w-4 mr-2" />
-                                {t.rules?.simulateFirst || 'Simulate First'}
+                            <Button variant="outline" onClick={() => { setIsCreateOpen(false); setCreateSimResults(null) }}>
+                                {t.common?.cancel || 'Cancelar'}
                             </Button>
                             <Button
                                 onClick={handleCreateRule}
                                 disabled={!newRuleName || newRuleConditions.length === 0}
                             >
-                                {t.rules?.createRule || 'Create Rule'}
+                                {t.rules?.createRule || 'Criar Regra'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
@@ -971,7 +1520,8 @@ export function RulesEnginePage() {
                                     onEdit={setEditingRule}
                                     onDelete={handleDelete}
                                     onDuplicate={handleDuplicate}
-                                    onSimulate={(currentRule) =>
+                                    onSimulate={(currentRule) => {
+                                        setSimContext('card')
                                         simulateMutation.mutate(
                                             buildSimulationPayload({
                                                 id: currentRule.id,
@@ -984,7 +1534,7 @@ export function RulesEnginePage() {
                                                 abTest: currentRule.abTest,
                                             })
                                         )
-                                    }
+                                    }}
                                 />
                             ))
                         )}
@@ -1003,19 +1553,44 @@ export function RulesEnginePage() {
                     </DialogHeader>
 
                     <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">{t.rules?.name || 'Nome'}</label>
-                            <Input
-                                value={editRuleName}
-                                onChange={(e) => setEditRuleName(e.target.value)}
-                                placeholder="Ex: Bloqueio de Alto Risco"
-                            />
+                        <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium">Nome</label>
+                                <Input
+                                    value={editRuleName}
+                                    onChange={(e) => setEditRuleName(e.target.value)}
+                                    placeholder="Ex: Bloquear Alto Risco com VPN"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium">Prioridade</label>
+                                <div className="flex gap-1.5">
+                                    {PRIORITY_LEVELS.map((p) => (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => setEditRulePriority(p.value)}
+                                            className={cn(
+                                                'px-2.5 py-1.5 rounded-md border text-xs transition-colors min-w-[56px] text-center',
+                                                priorityToLevel(editRulePriority) === p.id
+                                                    ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                                    : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
+                                            )}
+                                        >
+                                            {p.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {PRIORITY_LEVELS.find(
+                                        (p) => p.id === priorityToLevel(editRulePriority)
+                                    )?.hint}
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">
-                                {t.rules?.description || 'Descrição'}
-                            </label>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium">Descrição</label>
                             <Input
                                 value={editRuleDescription}
                                 onChange={(e) => setEditRuleDescription(e.target.value)}
@@ -1024,62 +1599,43 @@ export function RulesEnginePage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">
-                                {t.rules?.priority || 'Prioridade'} (maior = maior prioridade)
-                            </label>
-                            <Input
-                                type="number"
-                                value={editRulePriority}
-                                onChange={(e) => setEditRulePriority(Number(e.target.value))}
-                                min={0}
-                                max={100}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">
-                                {t.rules?.conditions || 'Condições'} (SE)
-                            </label>
+                            <label className="text-sm font-medium">Condições (SE)</label>
                             <ConditionBuilder
                                 conditions={editRuleConditions}
                                 onChange={setEditRuleConditions}
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">
-                                {t.rules?.actions || 'Ações (ENTÃO)'}
-                            </label>
-                            <Select
-                                value={editRuleAction || ''}
-                                onValueChange={(v) => setEditRuleAction(v as RuleAction['type'])}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione uma ação" />
-                                </SelectTrigger>
-                                <SelectContent side="bottom" align="start">
-                                    {actionOptions.map((a) => (
-                                        <SelectItem key={a.value} value={a.value}>
-                                            <div className="flex items-center gap-2">
-                                                <a.icon className={cn('h-4 w-4', a.color)} />
-                                                {a.label}
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium">Ação (ENTÃO)</label>
+                            <div className="grid grid-cols-5 gap-1.5">
+                                {actionOptions.map((a) => (
+                                    <button
+                                        key={a.value}
+                                        type="button"
+                                        onClick={() => setEditRuleAction(a.value as RuleAction['type'])}
+                                        className={cn(
+                                            'flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg border text-xs transition-colors',
+                                            editRuleAction === a.value
+                                                ? 'border-primary bg-primary/10'
+                                                : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
+                                        )}
+                                    >
+                                        <a.icon className={cn('h-4 w-4', editRuleAction === a.value ? a.color : '')} />
+                                        <span className={editRuleAction === a.value ? 'font-semibold text-foreground' : ''}>
+                                            {a.label}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="border rounded-lg p-4 space-y-3">
+                        <div className="border rounded-lg p-3 space-y-3">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <label className="text-sm font-medium">
-                                        {t.rules?.abTesting || 'Teste A/B'}
-                                    </label>
+                                    <label className="text-sm font-medium">Teste A/B</label>
                                     <p className="text-xs text-muted-foreground">
-                                        {t.rules?.trafficPercentage
-                                            ? 'Teste esta regra em uma porcentagem do tráfego'
-                                            : 'Teste esta regra em uma porcentagem do tráfego'}
+                                        Aplica a regra em apenas uma parte do tráfego
                                     </p>
                                 </div>
                                 <Switch
@@ -1088,22 +1644,86 @@ export function RulesEnginePage() {
                                 />
                             </div>
                             {editEnableAbTest && (
-                                <div className="space-y-2">
-                                    <label className="text-sm">
-                                        {t.rules?.trafficPercentage || 'Porcentagem de tráfego'}
+                                <div className="flex items-center gap-3">
+                                    <label className="text-sm text-muted-foreground shrink-0">
+                                        % do tráfego
                                     </label>
-                                    <div className="flex items-center gap-2">
-                                        <Input
-                                            type="number"
-                                            value={editAbTestPercentage}
-                                            onChange={(e) =>
-                                                setEditAbTestPercentage(Number(e.target.value))
-                                            }
-                                            min={1}
-                                            max={99}
-                                            className="w-24"
+                                    <Input
+                                        type="number"
+                                        value={editAbTestPercentage}
+                                        onChange={(e) =>
+                                            setEditAbTestPercentage(Number(e.target.value))
+                                        }
+                                        min={1}
+                                        max={99}
+                                        className="w-24 h-8"
+                                    />
+                                    <span className="text-sm text-muted-foreground">%</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs"
+                                    disabled={simulateMutation.isPending}
+                                    onClick={() => {
+                                        setSimContext('edit')
+                                        setEditSimResults(null)
+                                        simulateMutation.mutate({})
+                                    }}
+                                >
+                                    <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
+                                    Simular baseline (30d)
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs"
+                                    disabled={editRuleConditions.length === 0 || simulateMutation.isPending}
+                                    onClick={() => {
+                                        setSimContext('edit')
+                                        setEditSimResults(null)
+                                        simulateMutation.mutate(
+                                            buildSimulationPayload({
+                                                id: editingRule?.id,
+                                                name: editRuleName,
+                                                description: editRuleDescription,
+                                                conditions: editRuleConditions,
+                                                action: { type: editRuleAction },
+                                                priority: editRulePriority,
+                                                enabled: true,
+                                                abTest: editEnableAbTest
+                                                    ? { enabled: true, variant: editingRule?.abTest?.variant ?? 'A', trafficPercentage: editAbTestPercentage }
+                                                    : undefined,
+                                            })
+                                        )
+                                    }}
+                                >
+                                    <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
+                                    Simular esta regra
+                                </Button>
+                            </div>
+                            {editSimResults && (
+                                <div className="border rounded-lg overflow-hidden">
+                                    <div className="flex items-center justify-between px-3 py-2 bg-muted/30 border-b">
+                                        <p className="text-xs font-medium">Resultado da simulação</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditSimResults(null)}
+                                            className="text-muted-foreground hover:text-foreground text-xs"
+                                        >
+                                            Fechar
+                                        </button>
+                                    </div>
+                                    <div className="p-3">
+                                        <SimulationResults
+                                            results={editSimResults}
+                                            onClose={() => setEditSimResults(null)}
                                         />
-                                        <span className="text-sm text-muted-foreground">%</span>
                                     </div>
                                 </div>
                             )}
@@ -1111,35 +1731,8 @@ export function RulesEnginePage() {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={closeEditDialog}>
+                        <Button variant="outline" onClick={() => { closeEditDialog(); setEditSimResults(null) }}>
                             {t.common?.cancel || 'Cancelar'}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() =>
-                                simulateMutation.mutate(
-                                    buildSimulationPayload({
-                                        id: editingRule?.id,
-                                        name: editRuleName,
-                                        description: editRuleDescription,
-                                        conditions: editRuleConditions,
-                                        action: { type: editRuleAction },
-                                        priority: editRulePriority,
-                                        enabled: true,
-                                        abTest: editEnableAbTest
-                                            ? {
-                                                  enabled: true,
-                                                  variant: editingRule?.abTest?.variant ?? 'A',
-                                                  trafficPercentage: editAbTestPercentage,
-                                              }
-                                            : undefined,
-                                    })
-                                )
-                            }
-                            disabled={editRuleConditions.length === 0}
-                        >
-                            <FlaskConical className="h-4 w-4 mr-2" />
-                            {t.rules?.simulateFirst || 'Simulate First'}
                         </Button>
                         <Button
                             onClick={handleUpdateRule}

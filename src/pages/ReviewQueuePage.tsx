@@ -296,6 +296,11 @@ export function ReviewQueuePage() {
                                             <Badge variant="outline" className="font-mono text-xs">
                                                 {reviewCase.type.toUpperCase()}
                                             </Badge>
+                                            {reviewCase.use_case && (
+                                                <Badge variant="secondary" className="font-mono text-xs">
+                                                    {reviewCase.use_case}
+                                                </Badge>
+                                            )}
                                             <DecisionBadge decision={reviewCase.decision} />
                                             <span className="text-[10px] uppercase text-muted-foreground">
                                                 {t.common?.riskLabel ?? 'Risco'}:

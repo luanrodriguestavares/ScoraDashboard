@@ -138,6 +138,11 @@ export function DecisionsPage() {
                                             <Badge variant="outline" className="font-mono text-xs">
                                                 {decision.type.toUpperCase()}
                                             </Badge>
+                                            {decision.use_case && (
+                                                <Badge variant="secondary" className="font-mono text-xs">
+                                                    {decision.use_case}
+                                                </Badge>
+                                            )}
                                             <Badge
                                                 className={`text-xs font-semibold uppercase ${
                                                     decision.decision === 'block'

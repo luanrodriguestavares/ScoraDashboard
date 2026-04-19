@@ -96,6 +96,11 @@ function GroupedDecisionItem({ items, onItemClick }: GroupedDecisionItemProps) {
                                 {decisionLabel(d.decision)}
                             </Badge>
                             <RiskBadge level={d.riskLevel} />
+                            {d.use_case && (
+                                <Badge variant="secondary" className="text-[10px] font-mono">
+                                    {d.use_case}
+                                </Badge>
+                            )}
                             <span className="text-[11px] text-muted-foreground font-mono">
                                 #{d.id.slice(0, 8)}
                             </span>
@@ -191,6 +196,11 @@ function GroupedDecisionItem({ items, onItemClick }: GroupedDecisionItemProps) {
                                                 {decisionLabel(d.decision)}
                                             </Badge>
                                             <RiskBadge level={d.riskLevel} />
+                                            {d.use_case && (
+                                                <Badge variant="secondary" className="text-[10px] font-mono">
+                                                    {d.use_case}
+                                                </Badge>
+                                            )}
                                             <span className="text-[11px] text-muted-foreground font-mono">
                                                 #{d.id.slice(0, 8)}
                                             </span>

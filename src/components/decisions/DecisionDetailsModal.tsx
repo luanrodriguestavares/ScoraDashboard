@@ -107,14 +107,16 @@ export function DecisionDetailsModal({
             value: Math.abs(ruleAdj),
         })
     }
-    breakdownItems.push({
-        key: 'final',
-        label: t.reviewQueue.scoreLabels.final,
-        value: Number(decision.scoring.final_score ?? 0),
-    })
 
     const hasThresholds =
         explanation?.thresholds?.review_start != null && explanation?.thresholds?.review_end != null
+
+    const getScoreBarColor = (value: number) =>
+        value < 0.35
+            ? 'bg-emerald-500/70'
+            : value < 0.65
+              ? 'bg-amber-500/70'
+              : 'bg-red-500/70'
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,6 +137,11 @@ export function DecisionDetailsModal({
                                     <Badge variant="outline" className="text-xs font-mono">
                                         {decision.type.toUpperCase()}
                                     </Badge>
+                                    {decision.use_case && (
+                                        <Badge variant="secondary" className="text-xs font-mono">
+                                            {decision.use_case}
+                                        </Badge>
+                                    )}
                                 </div>
                                 <div className="text-right shrink-0">
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
@@ -304,7 +311,7 @@ export function DecisionDetailsModal({
                                         </div>
                                         <div className="h-1 bg-muted rounded-full overflow-hidden">
                                             <div
-                                                className="h-full rounded-full bg-primary/50"
+                                                className={`h-full rounded-full ${getScoreBarColor(item.value)}`}
                                                 style={{
                                                     width: `${Math.min(100, Math.max(0, item.value * 100))}%`,
                                                 }}
@@ -314,46 +321,60 @@ export function DecisionDetailsModal({
                                 ))}
                             </div>
 
-                            {/* Threshold bar */}
+                            {/* Threshold zones */}
                             {hasThresholds && (
                                 <div className="mt-3">
-                                    <p className="text-[10px] text-muted-foreground mb-1.5">
+                                    <p className="text-[10px] text-muted-foreground mb-2">
                                         {t.reviewQueue.thresholdsLabel}
                                     </p>
-                                    <div className="relative h-1.5 bg-muted rounded-full">
+                                    <div className="relative h-3 rounded-full overflow-hidden flex">
                                         <div
-                                            className="absolute top-0 bottom-0 w-px bg-border"
+                                            className="h-full bg-emerald-500/30 flex items-center justify-center"
+                                            style={{
+                                                width: `${explanation!.thresholds.review_start! * 100}%`,
+                                            }}
+                                        />
+                                        <div
+                                            className="h-full bg-amber-500/30 flex items-center justify-center"
+                                            style={{
+                                                width: `${(explanation!.thresholds.review_end! - explanation!.thresholds.review_start!) * 100}%`,
+                                            }}
+                                        />
+                                        <div className="h-full bg-red-500/30 flex-1" />
+                                        <div
+                                            className="absolute top-0 bottom-0 w-0.5 bg-foreground/30"
                                             style={{
                                                 left: `${explanation!.thresholds.review_start! * 100}%`,
                                             }}
                                         />
                                         <div
-                                            className="absolute top-0 bottom-0 w-px bg-border"
+                                            className="absolute top-0 bottom-0 w-0.5 bg-foreground/30"
                                             style={{
                                                 left: `${explanation!.thresholds.review_end! * 100}%`,
                                             }}
                                         />
                                         <div
-                                            className="absolute -top-1 h-3.5 w-1 bg-primary rounded-full"
+                                            className="absolute top-0.5 bottom-0.5 w-1.5 bg-foreground rounded-full shadow-sm"
                                             style={{
-                                                left: `${decision.scoring.final_score * 100}%`,
+                                                left: `calc(${decision.scoring.final_score * 100}% - 3px)`,
                                             }}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1">
-                                        <span>
-                                            Score:{' '}
-                                            <span className="text-primary font-medium">
-                                                {decision.scoring.final_score.toFixed(2)}
-                                            </span>
+                                    <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1.5">
+                                        <span className="flex items-center gap-1">
+                                            <span className="inline-block w-2 h-2 rounded-sm bg-emerald-500/40" />
+                                            Aprovação
                                         </span>
-                                        <span>
-                                            Revisão &gt;{' '}
-                                            {explanation!.thresholds.review_start!.toFixed(2)}
+                                        <span className="flex items-center gap-1">
+                                            <span className="inline-block w-2 h-2 rounded-sm bg-amber-500/40" />
+                                            Revisão
                                         </span>
-                                        <span>
-                                            Bloqueio &gt;{' '}
-                                            {explanation!.thresholds.review_end!.toFixed(2)}
+                                        <span className="flex items-center gap-1">
+                                            <span className="inline-block w-2 h-2 rounded-sm bg-red-500/40" />
+                                            Bloqueio
+                                        </span>
+                                        <span className="text-foreground font-medium tabular-nums">
+                                            Score: {decision.scoring.final_score.toFixed(2)}
                                         </span>
                                     </div>
                                 </div>

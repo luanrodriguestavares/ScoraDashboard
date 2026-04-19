@@ -23,6 +23,7 @@ import {
     FileBarChart,
     Bell,
     Building2,
+    Webhook,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useEffect } from 'react'
@@ -71,6 +72,14 @@ const navItems: NavItem[] = [
         icon: Bell,
         labelKey: 'alerting',
         section: 'risk',
+        requiresAdmin: true,
+    },
+    {
+        to: '/dashboard/webhooks',
+        icon: Webhook,
+        labelKey: 'webhooks',
+        fallbackLabel: 'Webhooks',
+        section: 'admin',
         requiresAdmin: true,
     },
     {
