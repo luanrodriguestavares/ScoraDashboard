@@ -38,6 +38,10 @@ import {
     Calendar,
 } from 'lucide-react'
 
+function getCaseLabel(item: { item_ref?: string; valueHash: string }) {
+    return item.item_ref || item.valueHash
+}
+
 function decisionBadgeVariant(decision?: string) {
     if (decision === 'allow') return 'default' as const
     if (decision === 'review') return 'secondary' as const
@@ -266,7 +270,9 @@ function ConnectionCard({ connection }: { connection: InvestigationConnection })
                         <Badge variant="outline" className="text-xs font-mono shrink-0">
                             {connection.type.toUpperCase()}
                         </Badge>
-                        <span className="text-sm font-mono truncate">{connection.hash}</span>
+                        <span className="text-sm font-mono truncate">
+                            {connection.item_ref || connection.hash}
+                        </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
                         {connection.seenCount}× ·{' '}
@@ -300,7 +306,9 @@ function SimilarCaseCard({ case_ }: { case_: InvestigationSimilarCase }) {
                         <Badge variant="outline" className="text-xs font-mono shrink-0">
                             {case_.type.toUpperCase()}
                         </Badge>
-                        <span className="text-sm font-mono truncate">{case_.valueHash}</span>
+                        <span className="text-sm font-mono truncate">
+                            {getCaseLabel(case_)}
+                        </span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <Badge variant={decisionBadgeVariant(case_.decision)} className="text-xs">
@@ -365,7 +373,7 @@ function CaseListItem({
                         {(c.currentScore * 100).toFixed(0)}%
                     </Badge>
                 </div>
-                <span className="text-xs font-mono truncate break-all">{c.valueHash}</span>
+                <span className="text-xs font-mono truncate break-all">{getCaseLabel(c)}</span>
             </div>
             <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                 <span>{getStatusText(c.status, t)}</span>
@@ -398,21 +406,28 @@ export function InvestigationPage() {
 
     const cases = casesQuery.data ?? []
     const caseIdParam = searchParams.get('caseId')
+    const itemRefParam = searchParams.get('itemRef')
     const valueHashParam = searchParams.get('valueHash')
     const typeParam = searchParams.get('type')
 
     useEffect(() => {
         if (cases.length === 0) return
-        if (caseIdParam || valueHashParam) {
+        if (caseIdParam || itemRefParam || valueHashParam) {
             const matchById = caseIdParam ? cases.find((c) => c.id === caseIdParam) : undefined
+            const matchByItemRef =
+                !matchById && itemRefParam
+                    ? cases.find(
+                          (c) => c.item_ref === itemRefParam && (!typeParam || c.type === typeParam)
+                      )
+                    : undefined
             const matchByValue =
-                !matchById && valueHashParam
+                !matchById && !matchByItemRef && valueHashParam
                     ? cases.find(
                           (c) =>
                               c.valueHash === valueHashParam && (!typeParam || c.type === typeParam)
                       )
                     : undefined
-            const target = matchById || matchByValue
+            const target = matchById || matchByItemRef || matchByValue
             if (target && target.id !== selectedCaseId) {
                 setSelectedCaseId(target.id)
                 return
@@ -421,7 +436,7 @@ export function InvestigationPage() {
         if (!selectedCaseId) {
             setSelectedCaseId(cases[0].id)
         }
-    }, [cases, caseIdParam, valueHashParam, typeParam, selectedCaseId])
+    }, [cases, caseIdParam, itemRefParam, valueHashParam, typeParam, selectedCaseId])
 
     const selectedCase = cases.find((c) => c.id === selectedCaseId) ?? null
 
@@ -482,6 +497,7 @@ export function InvestigationPage() {
     const filteredCases = cases.filter((c) => {
         const s = searchValue.toLowerCase()
         return (
+            c.item_ref?.toLowerCase().includes(s) ||
             c.valueHash?.toLowerCase().includes(s) ||
             c.type.toLowerCase().includes(s) ||
             c.id.toLowerCase().includes(s)
@@ -655,7 +671,7 @@ export function InvestigationPage() {
                                                     {selectedCase.type.toUpperCase()}
                                                 </Badge>
                                                 <span className="font-mono text-base truncate">
-                                                    {selectedCase.valueHash}
+                                                    {getCaseLabel(selectedCase)}
                                                 </span>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-2">

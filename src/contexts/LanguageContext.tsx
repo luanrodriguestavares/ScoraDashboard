@@ -303,6 +303,7 @@ type DashboardCopy = {
         patternsLabel: string
         typeLabel: string
         decisionLabel: string
+        decisionIdLabel: string
         riskLabel: string
         valueHashLabel: string
         reasonsLabel: string
@@ -1050,8 +1051,9 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             patternsLabel: 'Padrões',
             typeLabel: 'Tipo',
             decisionLabel: 'Decisão',
+            decisionIdLabel: 'Decision ID',
             riskLabel: 'Risco',
-            valueHashLabel: 'Hash do valor',
+            valueHashLabel: 'Item Ref',
             reasonsLabel: 'Motivos',
             createdAtLabel: 'Criado em',
             decisionsLabel: 'decisões',
@@ -1843,8 +1845,9 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             patternsLabel: 'Patterns',
             typeLabel: 'Type',
             decisionLabel: 'Decision',
+            decisionIdLabel: 'Decision ID',
             riskLabel: 'Risk',
-            valueHashLabel: 'Value hash',
+            valueHashLabel: 'Item Ref',
             reasonsLabel: 'Reasons',
             createdAtLabel: 'Created at',
             decisionsLabel: 'decisions',

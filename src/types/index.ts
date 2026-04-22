@@ -52,9 +52,11 @@ export type ExplainabilityData = {
 
 export interface RiskDecision {
     id: string
+    decision_id?: string
     group_id: string | null
     type: DataType
     use_case?: string | null
+    item_ref?: string
     valueHash: string
     decision: Decision
     riskLevel: RiskLevel
@@ -347,7 +349,7 @@ export interface RuleCondition {
 }
 
 export interface RuleAction {
-    type: 'block' | 'review' | 'allow' | 'escalate' | 'webhook' | 'tag'
+    type: 'block' | 'review' | 'allow' | 'tag'
     config?: Record<string, unknown>
 }
 
@@ -448,6 +450,7 @@ export interface InvestigationTimelineEvent {
 export interface InvestigationConnection {
     id: string
     type: string
+    item_ref?: string
     hash: string
     riskScore: number
     decision: Decision
@@ -457,6 +460,7 @@ export interface InvestigationConnection {
 
 export interface InvestigationSimilarCase {
     id: string
+    item_ref?: string
     valueHash: string
     type: string
     score: number
@@ -468,6 +472,7 @@ export interface InvestigationSimilarCase {
 
 export interface InvestigationCase {
     id: string
+    item_ref?: string
     valueHash: string
     type: string
     currentScore: number

@@ -18,6 +18,10 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { decisionApi } from '@/services/api'
 import { formatReason } from '@/constants/reasonCatalog'
 
+function getItemLabel(decision: Pick<RiskDecision, 'item_ref' | 'valueHash'>) {
+    return decision.item_ref || decision.valueHash
+}
+
 export function DecisionsPage() {
     const { t, language } = useLanguage()
     const [page, setPage] = useState(1)
@@ -172,7 +176,7 @@ export function DecisionsPage() {
 
                                     <div className="flex items-center justify-between gap-2 text-xs">
                                         <span className="font-mono text-muted-foreground truncate max-w-[260px]">
-                                            {decision.valueHash.slice(0, 18)}...
+                                            {getItemLabel(decision)}
                                         </span>
                                         <span className="text-muted-foreground flex items-center gap-1 whitespace-nowrap">
                                             <Clock className="h-3 w-3" />

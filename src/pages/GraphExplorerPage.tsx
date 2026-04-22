@@ -17,6 +17,8 @@ const formatHash = (hash?: string | null) => {
     return `${hash.slice(0, 6)}...${hash.slice(-4)}`
 }
 
+const getNodeLabel = (node: Pick<GraphNode, 'item_ref' | 'hash'>) => node.item_ref || node.hash
+
 function GraphTooltip({ x, y, node }: { x: number; y: number; node: GraphNode }) {
     const { t } = useLanguage()
     return (
@@ -25,7 +27,7 @@ function GraphTooltip({ x, y, node }: { x: number; y: number; node: GraphNode })
             style={{ left: x, top: y, transform: 'translate(-50%, -120%)' }}
         >
             <div className="font-medium">{node.type.toUpperCase()}</div>
-            <div className="text-muted-foreground">{formatHash(node.hash)}</div>
+            <div className="text-muted-foreground">{formatHash(getNodeLabel(node))}</div>
             <div className="text-muted-foreground">
                 {t.graph.occurrencesLabel}:{' '}
                 <span className="text-foreground">{node.connections}</span>
@@ -348,7 +350,7 @@ function GraphVisualization({
                                     !isConnected && 'opacity-40'
                                 )}
                             >
-                                {formatHash(node.hash)}
+                                {formatHash(getNodeLabel(node))}
                             </text>
                         </g>
                     )
@@ -388,8 +390,8 @@ function NodeDetailsPanel({ node, cluster }: NodeDetailsPanelProps) {
                 <Badge variant="outline" className="font-mono">
                     {node.type.toUpperCase()}
                 </Badge>
-                <span className="text-sm text-muted-foreground" title={node.hash}>
-                    {formatHash(node.hash)}
+                <span className="text-sm text-muted-foreground" title={getNodeLabel(node)}>
+                    {formatHash(getNodeLabel(node))}
                 </span>
             </div>
 
@@ -428,9 +430,9 @@ function NodeDetailsPanel({ node, cluster }: NodeDetailsPanelProps) {
                                         </Badge>
                                         <span
                                             className="text-muted-foreground"
-                                            title={connectedNode.hash}
+                                            title={getNodeLabel(connectedNode)}
                                         >
-                                            {formatHash(connectedNode.hash)}
+                                            {formatHash(getNodeLabel(connectedNode))}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">

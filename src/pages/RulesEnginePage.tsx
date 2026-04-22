@@ -40,7 +40,6 @@ import {
     Copy,
     MoreHorizontal,
     FlaskConical,
-    ArrowUpDown,
     Zap,
     AlertTriangle,
     CheckCircle,
@@ -60,7 +59,7 @@ interface RuleCondition {
 }
 
 interface RuleAction {
-    type: 'block' | 'review' | 'allow' | 'escalate' | 'webhook' | 'tag'
+    type: 'block' | 'review' | 'allow' | 'tag'
     config?: Record<string, unknown>
 }
 
@@ -329,10 +328,13 @@ const operatorOptions = allOperatorOptions
 
 const actionOptions = [
     { value: 'block', label: 'Block', icon: XCircle, color: 'text-decision-block' },
-    { value: 'review', label: 'Review', icon: AlertTriangle, color: 'text-decision-review' },
+    {
+        value: 'review',
+        label: 'Manual Review',
+        icon: AlertTriangle,
+        color: 'text-decision-review',
+    },
     { value: 'allow', label: 'Allow', icon: CheckCircle, color: 'text-decision-allow' },
-    { value: 'escalate', label: 'Escalate', icon: ArrowUpDown, color: 'text-purple-500' },
-    { value: 'webhook', label: 'Webhook', icon: Zap, color: 'text-blue-500' },
 ]
 
 const RULE_TEMPLATES = [
@@ -465,10 +467,7 @@ function RuleCard({ rule, onToggle, onEdit, onDelete, onDuplicate, onSimulate }:
                                     rule.action.type === 'review' &&
                                         'bg-decision-review/10 text-decision-review',
                                     rule.action.type === 'allow' &&
-                                        'bg-decision-allow/10 text-decision-allow',
-                                    rule.action.type === 'escalate' &&
-                                        'bg-purple-500/10 text-purple-500',
-                                    rule.action.type === 'webhook' && 'bg-blue-500/10 text-blue-500'
+                                        'bg-decision-allow/10 text-decision-allow'
                                 )}
                             >
                                 <ActionIcon className="h-3 w-3" />
@@ -1280,7 +1279,12 @@ export function RulesEnginePage() {
 
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium">Ação (ENTÃO)</label>
-                                <div className="grid grid-cols-5 gap-1.5">
+                                <p className="text-xs text-muted-foreground">
+                                    Regras decidem entre permitir, bloquear ou enviar para revisão
+                                    manual. Webhooks são configurados na página de Webhooks.
+                                    Escalonamento é uma ação humana da Review Queue.
+                                </p>
+                                <div className="grid grid-cols-3 gap-1.5">
                                     {actionOptions.map((a) => (
                                         <button
                                             key={a.value}
@@ -1608,7 +1612,12 @@ export function RulesEnginePage() {
 
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium">Ação (ENTÃO)</label>
-                            <div className="grid grid-cols-5 gap-1.5">
+                            <p className="text-xs text-muted-foreground">
+                                Regras decidem entre permitir, bloquear ou enviar para revisão
+                                manual. Webhooks são configurados na página de Webhooks.
+                                Escalonamento é uma ação humana da Review Queue.
+                            </p>
+                            <div className="grid grid-cols-3 gap-1.5">
                                 {actionOptions.map((a) => (
                                     <button
                                         key={a.value}

@@ -22,6 +22,11 @@ import type { ReviewCase } from '@/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { decisionApi, reviewApi } from '@/services/api'
 import { getRecommendationAction } from '@/utils/decisionRecommendation'
+
+function getItemLabel(reviewCase: Pick<ReviewCase, 'item_ref' | 'valueHash'>) {
+    return reviewCase.item_ref || reviewCase.valueHash
+}
+
 export function ReviewQueuePage() {
     const { t, language } = useLanguage()
     const { isAdmin, user } = useAuth()
@@ -79,6 +84,7 @@ export function ReviewQueuePage() {
                     const query = searchQuery.toLowerCase()
                     return (
                         c.id.toLowerCase().includes(query) ||
+                        (c.item_ref || '').toLowerCase().includes(query) ||
                         c.valueHash.toLowerCase().includes(query) ||
                         c.type.toLowerCase().includes(query)
                     )
@@ -319,7 +325,7 @@ export function ReviewQueuePage() {
 
                                     <div className="flex items-center justify-between gap-2 text-xs">
                                         <span className="font-mono text-muted-foreground truncate max-w-[260px]">
-                                            {reviewCase.valueHash}
+                                            {getItemLabel(reviewCase)}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             {reviewCase.assignee === user?.id ? (

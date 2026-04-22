@@ -33,6 +33,10 @@ const emptyStats: DashboardStats = {
 
 const DECISION_PRIORITY = { block: 2, review: 1, allow: 0 } as const
 
+function getItemLabel(d: Pick<RiskDecision, 'item_ref' | 'valueHash'>) {
+    return d.item_ref || d.valueHash
+}
+
 function worstDecision(items: RiskDecision[]): RiskDecision['decision'] {
     return items.reduce<RiskDecision['decision']>((acc, d) => {
         const dp = DECISION_PRIORITY[d.decision as keyof typeof DECISION_PRIORITY] ?? 0
@@ -106,7 +110,7 @@ function GroupedDecisionItem({ items, onItemClick }: GroupedDecisionItemProps) {
                             </span>
                         </div>
                         <div className="text-sm font-medium break-all">
-                            {d.type.toUpperCase()} · {d.valueHash}
+                            {d.type.toUpperCase()} · {getItemLabel(d)}
                         </div>
                         <div className="text-xs text-muted-foreground break-words">
                             {primaryReason
@@ -206,7 +210,7 @@ function GroupedDecisionItem({ items, onItemClick }: GroupedDecisionItemProps) {
                                             </span>
                                         </div>
                                         <div className="text-sm font-medium break-all">
-                                            {d.type.toUpperCase()} · {d.valueHash}
+                                            {d.type.toUpperCase()} · {getItemLabel(d)}
                                         </div>
                                         {primaryReason && (
                                             <div className="text-xs text-muted-foreground">

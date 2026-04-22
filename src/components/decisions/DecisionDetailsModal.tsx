@@ -64,6 +64,7 @@ export function DecisionDetailsModal({
 
     const graphAnalysis = decision.graph_analysis
     const explanation = decision.explanation
+    const itemLabel = decision.item_ref || decision.valueHash
 
     const explainability = decision.explainability ?? buildLocalExplainability(decision)
 
@@ -161,10 +162,16 @@ export function DecisionDetailsModal({
                             {/* Hash */}
                             <div className="border-t border-border/60 pt-2 space-y-1.5">
                                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                    {t.common.decisionIdLabel}
+                                </p>
+                                <p className="font-mono text-xs break-all text-muted-foreground bg-muted/40 rounded px-2 py-1.5">
+                                    {decision.decision_id || decision.id}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider pt-1">
                                     {t.common.valueHashLabel}
                                 </p>
                                 <p className="font-mono text-xs break-all text-muted-foreground bg-muted/40 rounded px-2 py-1.5">
-                                    {reveal?.revealedValue ?? decision.valueHash}
+                                    {reveal?.revealedValue ?? itemLabel}
                                 </p>
                                 {reveal?.canReveal && (
                                     <Button
@@ -390,6 +397,7 @@ export function DecisionDetailsModal({
                                 onClick={() => {
                                     const params = new URLSearchParams({
                                         caseId: decision.id,
+                                        itemRef: decision.item_ref || '',
                                         valueHash: decision.valueHash,
                                         type: decision.type,
                                     })
