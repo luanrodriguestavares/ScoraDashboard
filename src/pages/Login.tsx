@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/use-toast'
@@ -66,28 +66,10 @@ export default function Login() {
                         />
                     </div>
                     <CardTitle className="text-2xl font-heading">Entrar</CardTitle>
+                    <CardDescription>Gerencie validações, regras e decisões automatizadas em um único painel.</CardDescription>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                    <div className="flex justify-center">
-                        <GoogleLogin
-                            onSuccess={(res) => res.credential && handleGoogle(res.credential)}
-                            onError={() => toast({ variant: 'warning', title: 'Falha ao entrar com Google' })}
-                            width="352"
-                            text="signin_with"
-                            shape="rectangular"
-                        />
-                    </div>
-
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-border" />
-                        </div>
-                        <div className="relative flex justify-center text-xs">
-                            <span className="bg-card px-2 text-muted-foreground">ou</span>
-                        </div>
-                    </div>
-
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
                             <label htmlFor="email" className="text-sm font-medium">Email</label>
@@ -108,7 +90,7 @@ export default function Login() {
                                 <Input
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
-                                    placeholder="........"
+                                    placeholder="Mínimo 8 caracteres"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
@@ -140,6 +122,25 @@ export default function Login() {
                             )}
                         </Button>
                     </form>
+
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-border" />
+                        </div>
+                        <div className="relative flex justify-center text-xs">
+                            <span className="bg-card px-2 text-muted-foreground">ou</span>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-center">
+                        <GoogleLogin
+                            onSuccess={(res) => res.credential && handleGoogle(res.credential)}
+                            onError={() => toast({ variant: 'warning', title: 'Falha ao entrar com Google' })}
+                            width="352"
+                            text="signin_with"
+                            shape="rectangular"
+                        />
+                    </div>
 
                     <div className="text-center text-sm text-muted-foreground">
                         <button
