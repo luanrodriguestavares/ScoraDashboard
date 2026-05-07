@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query'
 import { dashboardApi, decisionApi } from '@/services/api'
 import { useNavigate } from 'react-router-dom'
 import { formatReason } from '@/constants/reasonCatalog'
+import { mockDashboardStats, mockRecentDecisions } from '@/mocks/dashboardOverview'
 
 const emptyStats: DashboardStats = {
     total_decisions_today: 0,
@@ -32,6 +33,7 @@ const emptyStats: DashboardStats = {
 }
 
 const DECISION_PRIORITY = { block: 2, review: 1, allow: 0 } as const
+const useMockDashboardOverview = import.meta.env.VITE_MOCK_DASHBOARD_OVERVIEW === 'true'
 
 function getItemLabel(d: Pick<RiskDecision, 'item_ref' | 'valueHash'>) {
     return d.item_ref || d.valueHash
@@ -69,7 +71,7 @@ function GroupedDecisionItem({ items, onItemClick }: GroupedDecisionItemProps) {
     }
 
     const decisionLabel = (d: RiskDecision['decision']) =>
-        d === 'block' ? 'Bloqueado' : d === 'review' ? 'Em Revisão' : 'Aprovado'
+        d === 'block' ? t.decisions.block : d === 'review' ? t.decisions.review : t.decisions.allow
 
     const decisionClass = (d: RiskDecision['decision']) =>
         d === 'block'
@@ -133,8 +135,8 @@ function GroupedDecisionItem({ items, onItemClick }: GroupedDecisionItemProps) {
                         <span className="text-xs text-muted-foreground">
                             {formatTime(d.created_at)}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                            {t.common.score}: {d.score.toFixed(2)}
+                        <span className="text-xs text-muted-foreground tabular-nums font-mono">
+                            {d.score.toFixed(2)}
                         </span>
                     </div>
                 </div>
@@ -160,10 +162,10 @@ function GroupedDecisionItem({ items, onItemClick }: GroupedDecisionItemProps) {
                                 {decisionLabel(groupDecision)}
                             </Badge>
                             <Badge variant="secondary" className="text-[10px]">
-                                {items.length} itens
+                                {items.length} {t.common.items}
                             </Badge>
                             <span className="text-[11px] text-muted-foreground font-mono">
-                                grupo #{representativeDecision.group_id?.slice(0, 8)}
+                                {t.common.group} #{representativeDecision.group_id?.slice(0, 8)}
                             </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -174,8 +176,8 @@ function GroupedDecisionItem({ items, onItemClick }: GroupedDecisionItemProps) {
                         <span className="text-xs text-muted-foreground">
                             {formatTime(representativeDecision.created_at)}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                            {t.common.score}: {maxScore.toFixed(2)}
+                        <span className="text-xs text-muted-foreground tabular-nums font-mono">
+                            {maxScore.toFixed(2)}
                         </span>
                     </div>
                 </div>
@@ -218,7 +220,7 @@ function GroupedDecisionItem({ items, onItemClick }: GroupedDecisionItemProps) {
                                             </div>
                                         )}
                                     </div>
-                                    <span className="text-xs text-muted-foreground shrink-0">
+                                    <span className="text-xs text-muted-foreground shrink-0 tabular-nums font-mono">
                                         {d.score.toFixed(2)}
                                     </span>
                                 </div>
@@ -239,13 +241,17 @@ export function OverviewPage() {
     const [now, setNow] = useState(Date.now())
 
     const statsQuery = useQuery({
-        queryKey: ['dashboard', 'stats'],
-        queryFn: () => dashboardApi.getStats(),
+        queryKey: ['dashboard', 'stats', useMockDashboardOverview ? 'mock' : 'live'],
+        queryFn: () =>
+            useMockDashboardOverview ? Promise.resolve(mockDashboardStats) : dashboardApi.getStats(),
     })
 
     const recentQuery = useQuery({
-        queryKey: ['decisions', 'recent', 10],
-        queryFn: () => decisionApi.getRecent(10),
+        queryKey: ['decisions', 'recent', 10, useMockDashboardOverview ? 'mock' : 'live'],
+        queryFn: () =>
+            useMockDashboardOverview
+                ? Promise.resolve(mockRecentDecisions)
+                : decisionApi.getRecent(10),
     })
 
     const stats = statsQuery.data ?? emptyStats
@@ -343,24 +349,27 @@ export function OverviewPage() {
     }, [])
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-heading font-bold">{t.overview.title}</h2>
-                    <p className="text-muted-foreground">{t.overview.subtitle}</p>
+                    <h2 className="text-2xl font-heading font-bold tracking-tight">{t.overview.title}</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">{t.overview.subtitle}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground tabular-nums">
                         {t.overview.lastUpdated}:{' '}
                         {secondsSinceUpdate === null
                             ? t.common.unavailable
                             : `${secondsSinceUpdate}s`}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className={cn(
+                        'flex items-center gap-1.5 text-xs transition-colors duration-700',
+                        streamActive ? 'text-decision-allow/80' : 'text-muted-foreground/60'
+                    )}>
                         <span
                             className={cn(
-                                'h-2 w-2 rounded-full',
-                                streamActive ? 'bg-decision-allow animate-pulse' : 'bg-muted'
+                                'h-1.5 w-1.5 rounded-full transition-colors duration-700',
+                                streamActive ? 'bg-decision-allow animate-pulse' : 'bg-muted-foreground/30'
                             )}
                         />
                         {t.overview.streamActive}
@@ -382,7 +391,7 @@ export function OverviewPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                 <Card className="xl:col-span-2">
                     <CardContent className="p-6 space-y-4">
                         <div className="flex items-center justify-between">
@@ -407,7 +416,7 @@ export function OverviewPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="rounded-lg border border-border/60 bg-card/60 p-4">
-                                <div className="text-3xl font-semibold">
+                                <div className="text-3xl font-semibold tabular-nums">
                                     {formatNumber(stats.total_decisions_today)}
                                 </div>
                                 <div className="text-xs text-muted-foreground mt-1">
@@ -415,39 +424,35 @@ export function OverviewPage() {
                                 </div>
                             </div>
                             <div className="rounded-lg border border-border/60 bg-card/60 p-4">
-                                <div className="text-2xl font-semibold">
+                                <div className="text-3xl font-semibold tabular-nums">
                                     {formatNumber(autoDecisions)}
                                 </div>
                                 <div className="text-xs text-muted-foreground mt-1">
                                     {t.overview.autoDecisions}
                                 </div>
-                                <div className="text-[11px] text-muted-foreground mt-1">
+                                <div className="text-xs text-muted-foreground/70 mt-1">
                                     {stats.total_decisions_today
-                                        ? `${((autoDecisions / stats.total_decisions_today) * 100).toFixed(0)}%`
+                                        ? `${((autoDecisions / stats.total_decisions_today) * 100).toFixed(0)}% ${t.common.ofTotal}`
                                         : '0%'}
                                 </div>
                             </div>
                             <div className="rounded-lg border border-border/60 bg-card/60 p-4">
-                                <div className="text-2xl font-semibold">
+                                <div className="text-3xl font-semibold tabular-nums">
                                     {formatNumber(stats.pending_reviews)}
                                 </div>
                                 <div className="text-xs text-muted-foreground mt-1">
                                     {t.overview.humanReview}
                                 </div>
-                                <div className="text-[11px] text-muted-foreground mt-1">
+                                <div className="text-xs text-muted-foreground/70 mt-1">
                                     {t.overview.pendingReviewLabel}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-                            <div>
-                                {t.overview.pendingReviewLabel}:{' '}
-                                {formatNumber(stats.pending_reviews)}
-                            </div>
+                        <div className="flex items-center justify-end text-xs text-muted-foreground">
                             <div>
                                 {t.overview.impactLabel}:{' '}
-                                <span className="text-foreground font-medium">
+                                <span className="text-foreground font-medium tabular-nums">
                                     {blockedPercent.toFixed(1)}%
                                 </span>{' '}
                                 {t.overview.blockedToday}
@@ -463,7 +468,7 @@ export function OverviewPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="text-4xl font-semibold">
+                        <div className="text-3xl font-semibold tabular-nums">
                             {formatNumber(stats.pending_reviews)}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -482,49 +487,46 @@ export function OverviewPage() {
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+                <div className="space-y-4">
                     <DecisionStackedChart
                         data={hourlyData}
                         title={t.overview.decisionsPerHour}
                         height={150}
                     />
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    {t.overview.recentDecisions}
+                                </CardTitle>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs"
+                                    onClick={() => navigate('/dashboard/decisions')}
+                                >
+                                    {t.overview.viewAll}
+                                    <ArrowRight className="h-3 w-3 ml-1" />
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <ScrollArea className="h-[260px]">
+                                <div className="space-y-3">
+                                    {recentGroups.map((group, idx) => (
+                                        <GroupedDecisionItem
+                                            key={group.group_id ?? group.items[0]?.id ?? idx}
+                                            items={group.items}
+                                            onItemClick={(d) => setSelectedDecision(d)}
+                                        />
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
                 </div>
                 <RiskDistribution data={riskData} title={t.overview.riskDistribution} />
-            </div>
-
-            <div className="grid grid-cols-1 gap-3">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                {t.overview.recentDecisions}
-                            </CardTitle>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => navigate('/dashboard/decisions')}
-                            >
-                                {t.overview.viewAll}
-                                <ArrowRight className="h-3 w-3 ml-1" />
-                            </Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <ScrollArea className="h-[260px]">
-                            <div className="space-y-3">
-                                {recentGroups.map((group, idx) => (
-                                    <GroupedDecisionItem
-                                        key={group.group_id ?? group.items[0]?.id ?? idx}
-                                        items={group.items}
-                                        onItemClick={(d) => setSelectedDecision(d)}
-                                    />
-                                ))}
-                            </div>
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
             </div>
 
             <DecisionDetailsModal

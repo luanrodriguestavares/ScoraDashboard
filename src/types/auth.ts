@@ -13,6 +13,17 @@ export interface User {
     updated_at: string
 }
 
+export interface AccountPlan {
+    id: string
+    name: string
+    display_name: string
+    price_monthly: number | null
+    monthly_requests: number | null
+    max_dashboard_users: number | null
+    max_custom_rules: number | null
+    max_webhooks: number | null
+}
+
 export interface Account {
     id: string
     name: string
@@ -22,6 +33,7 @@ export interface Account {
     active: boolean
     quota_limit: number
     plan_id?: string | null
+    plan?: AccountPlan | null
     total_requests: number
     users_count: number
     api_keys_count: number

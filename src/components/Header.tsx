@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useLanguage, Language } from '@/contexts/LanguageContext'
-import { Moon, Sun, LogOut, Globe, User, Check } from 'lucide-react'
+import { Moon, Sun, LogOut, Globe, User, Check, CreditCard } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -22,7 +22,7 @@ interface HeaderProps {
 }
 
 function UserMenu() {
-    const { user, logout } = useAuth()
+    const { user, account, logout, isAdmin, isSuperAdmin } = useAuth()
     const { isDark, toggle } = useTheme()
     const { language, setLanguage, t } = useLanguage()
     const navigate = useNavigate()
@@ -35,6 +35,9 @@ function UserMenu() {
         .join('')
         .slice(0, 2)
         .toUpperCase()
+
+    const planName = account?.plan?.display_name ?? 'Free'
+    const showPlan = !isSuperAdmin && isAdmin
 
     return (
         <DropdownMenu modal={false}>
@@ -51,22 +54,26 @@ function UserMenu() {
                     )}
                 </button>
             </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuLabel className="font-normal py-2">
+            <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal py-2.5 px-3">
                     <p className="text-[13px] font-semibold leading-none">{user.name}</p>
                     <p className="text-[11px] text-muted-foreground mt-1 truncate">{user.email}</p>
+                    {showPlan && (
+                        <button
+                            onClick={() => navigate('/dashboard/billing')}
+                            className="mt-1 w-full flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                        >
+                            <CreditCard className="h-3 w-3 shrink-0" />
+                            <span>Plano {planName}</span>
+                        </button>
+                    )}
                 </DropdownMenuLabel>
-
                 <DropdownMenuSeparator />
-
                 <DropdownMenuItem onClick={() => navigate('/dashboard/profile')}>
                     <User className="h-4 w-4 mr-2" />
                     {t.header.profile}
                 </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
-
                 <DropdownMenuItem onClick={toggle}>
                     {isDark ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
                     {isDark
@@ -77,7 +84,6 @@ function UserMenu() {
                           ? 'Tema Escuro'
                           : 'Dark Theme'}
                 </DropdownMenuItem>
-
                 <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
                         <Globe className="h-4 w-4 mr-2" />
@@ -94,9 +100,7 @@ function UserMenu() {
                         </DropdownMenuItem>
                     </DropdownMenuSubContent>
                 </DropdownMenuSub>
-
                 <DropdownMenuSeparator />
-
                 <DropdownMenuItem
                     onClick={logout}
                     className="text-destructive focus:text-destructive focus:bg-destructive/10"
@@ -121,11 +125,10 @@ export function Header({ leftContent, rightContent }: HeaderProps) {
                         <img
                             src={isDark ? '/img/ScoraLogo.png' : '/img/ScoraLogoDark.png'}
                             alt="Scora"
-                            className="h-10 w-auto"
+                            className="h-8 w-auto"
                         />
                     </div>
                 </div>
-
                 <div className="flex items-center gap-0.5 md:gap-1 pr-[8px]">
                     {rightContent}
                     <UserMenu />

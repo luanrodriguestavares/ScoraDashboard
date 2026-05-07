@@ -24,6 +24,7 @@ import {
     Bell,
     Building2,
     Webhook,
+    CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useEffect } from 'react'
@@ -109,6 +110,14 @@ const navItems: NavItem[] = [
         icon: FileText,
         labelKey: 'auditLogs',
         section: 'admin',
+        requiresAdmin: true,
+    },
+    {
+        to: '/dashboard/billing',
+        icon: CreditCard,
+        labelKey: 'billing',
+        fallbackLabel: 'Plano & Uso',
+        section: 'account',
         requiresAdmin: true,
     },
     { to: '/dashboard/profile', icon: User, labelKey: 'profile', section: 'account' },
@@ -217,8 +226,8 @@ export function Sidebar({ collapsed, onCollapse, mobileOpen, onMobileClose }: Si
 
                 {!collapsed && riskItems.length > 0 && (
                     <div className="pt-5 pb-1.5 px-3">
-                        <span className="text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-[0.08em]">
-                            Risk Intelligence
+                        <span className="text-[11px] font-semibold text-sidebar-foreground/50 uppercase tracking-[0.07em]">
+                            {t.common.sectionRisk}
                         </span>
                     </div>
                 )}
@@ -226,7 +235,7 @@ export function Sidebar({ collapsed, onCollapse, mobileOpen, onMobileClose }: Si
 
                 {!collapsed && learningItems.length > 0 && (
                     <div className="pt-5 pb-1.5 px-3">
-                        <span className="text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-[0.08em]">
+                        <span className="text-[11px] font-semibold text-sidebar-foreground/50 uppercase tracking-[0.07em]">
                             {t.learning?.sectionLabel || 'Learning'}
                         </span>
                     </div>
@@ -235,8 +244,8 @@ export function Sidebar({ collapsed, onCollapse, mobileOpen, onMobileClose }: Si
 
                 {!collapsed && adminItems.length > 0 && (
                     <div className="pt-5 pb-1.5 px-3">
-                        <span className="text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-[0.08em]">
-                            {isSuperAdmin ? 'Super Admin' : 'Admin'}
+                        <span className="text-[11px] font-semibold text-sidebar-foreground/50 uppercase tracking-[0.07em]">
+                            {isSuperAdmin ? 'Super Admin' : t.common.sectionAdmin}
                         </span>
                     </div>
                 )}
@@ -244,8 +253,8 @@ export function Sidebar({ collapsed, onCollapse, mobileOpen, onMobileClose }: Si
 
                 {!collapsed && accountItems.length > 0 && (
                     <div className="pt-5 pb-1.5 px-3">
-                        <span className="text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-[0.08em]">
-                            {t.header.profile}
+                        <span className="text-[11px] font-semibold text-sidebar-foreground/50 uppercase tracking-[0.07em]">
+                            {t.common.sectionAccount}
                         </span>
                     </div>
                 )}
@@ -290,7 +299,7 @@ export function Sidebar({ collapsed, onCollapse, mobileOpen, onMobileClose }: Si
                 )}
             >
                 <div className="md:hidden flex items-center justify-between p-3 border-b border-sidebar-border">
-                    <span className="font-semibold">Menu</span>
+                    <span className="font-semibold">{t.commandPalette.navigation}</span>
                     <Button variant="ghost" size="icon" onClick={onMobileClose}>
                         <X className="h-5 w-5" />
                     </Button>

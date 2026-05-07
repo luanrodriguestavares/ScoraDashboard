@@ -82,11 +82,11 @@ export function RiskDistribution({ data, title }: RiskDistributionProps) {
     const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null)
     const formatNumber = (num: number) => new Intl.NumberFormat().format(num)
 
-    const opacityMap = {
-        low: 0.3,
-        medium: 0.5,
-        high: 0.7,
-        critical: 0.9,
+    const colorMap: Record<RiskLevel, string> = {
+        low: 'hsl(var(--primary) / 0.32)',
+        medium: 'hsl(var(--primary) / 0.5)',
+        high: 'hsl(var(--primary) / 0.72)',
+        critical: 'hsl(var(--primary) / 0.95)',
     }
 
     const labels: Record<RiskLevel, string> = {
@@ -120,7 +120,7 @@ export function RiskDistribution({ data, title }: RiskDistributionProps) {
                     </CardTitle>
                 </CardHeader>
             )}
-            <CardContent>
+            <CardContent className="space-y-3">
                 <div
                     className="relative h-[200px] flex items-center justify-center"
                     onMouseLeave={() => {
@@ -152,15 +152,14 @@ export function RiskDistribution({ data, title }: RiskDistributionProps) {
                                 {chartData.map((entry, index) => (
                                     <Cell
                                         key={`${entry.level}-${index}`}
-                                        fill="hsl(185 72% 36%)"
-                                        opacity={opacityMap[entry.level]}
+                                        fill={colorMap[entry.level]}
                                         className="transition-all duration-200 cursor-default"
                                         onMouseEnter={() => setHovered(entry.level)}
                                         style={{
                                             filter:
                                                 hovered === entry.level
-                                                    ? 'brightness(1.15)'
-                                                    : 'brightness(1)',
+                                                    ? 'brightness(1.06) saturate(1.05)'
+                                                    : 'none',
                                         }}
                                     />
                                 ))}
@@ -181,9 +180,7 @@ export function RiskDistribution({ data, title }: RiskDistributionProps) {
                             <div className="flex items-center gap-2">
                                 <div
                                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                    style={{
-                                        backgroundColor: `hsl(185 72% 36% / ${opacityMap[activeItem.level]})`,
-                                    }}
+                                    style={{ backgroundColor: colorMap[activeItem.level] }}
                                 />
                                 <span className="font-semibold">{labels[activeItem.level]}</span>
                             </div>
@@ -196,6 +193,26 @@ export function RiskDistribution({ data, title }: RiskDistributionProps) {
                             </div>
                         </div>
                     )}
+                </div>
+
+                <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border/40 pt-3">
+                    {normalized.map((item) => (
+                        <div
+                            key={item.level}
+                            className="flex min-w-[calc(50%-0.5rem)] flex-1 items-center gap-2 rounded-md bg-muted/35 px-2.5 py-1.5"
+                        >
+                            <div
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{ backgroundColor: colorMap[item.level] }}
+                            />
+                            <span className="text-xs text-muted-foreground truncate">
+                                {labels[item.level]}
+                            </span>
+                            <span className="text-xs font-medium tabular-nums ml-auto shrink-0">
+                                {item.pct > 0 ? `${item.pct.toFixed(0)}%` : '—'}
+                            </span>
+                        </div>
+                    ))}
                 </div>
             </CardContent>
         </Card>

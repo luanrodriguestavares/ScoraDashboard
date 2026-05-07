@@ -1,14 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ThemeProvider } from '@/hooks/useTheme'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import { LanguageProvider } from '@/contexts/LanguageContext'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Header } from '@/components/Header'
 import { AlertsDropdown } from '@/components/dashboard/AlertsDropdown'
 import { Sidebar, MobileMenuButton } from '@/components/Sidebar'
 import { CommandPalette } from '@/components/CommandPalette'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
+import AuthCallback from '@/pages/AuthCallback'
 import { AcceptInvitationPage } from '@/pages/AcceptInvitationPage'
 import { OverviewPage } from '@/pages/OverviewPage'
 import { ReviewQueuePage } from '@/pages/ReviewQueuePage'
@@ -20,6 +22,7 @@ import { ApiKeysPage } from '@/pages/ApiKeysPage'
 import { AuditLogsPage } from '@/pages/AuditLogsPage'
 import { UsersPage } from '@/pages/UsersPage'
 import { ProfilePage } from '@/pages/ProfilePage'
+import { BillingPage } from '@/pages/BillingPage'
 import { RulesEnginePage } from '@/pages/RulesEnginePage'
 import { WebhooksPage } from '@/pages/WebhooksPage'
 import { MonitoringPage } from '@/pages/MonitoringPage'
@@ -30,10 +33,11 @@ import { AlertingPage } from '@/pages/AlertingPage'
 import { AccountsPage } from '@/pages/AccountsPage'
 import { PlansPage } from '@/pages/PlansPage'
 import { SuperAdminOverviewPage } from '@/pages/SuperAdminOverviewPage'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Toaster } from '@/components/ui/toaster'
 import { ErrorBoundaryProvider } from '@/components/ErrorBoundary'
+import { CompanySetupModal } from '@/components/CompanySetupModal'
 
 const queryClient = new QueryClient()
 
@@ -84,10 +88,41 @@ function SuperAdminRoute({ children }: { children: React.ReactNode }) {
     return isSuperAdmin ? <>{children}</> : <Navigate to="/dashboard" replace />
 }
 
+const PAGE_TITLES: Record<string, string> = {
+    '/dashboard': 'Visão Geral',
+    '/dashboard/decisions': 'Decisões',
+    '/dashboard/graph': 'Grafo de Identidade',
+    '/dashboard/analytics': 'Analytics',
+    '/dashboard/rules': 'Motor de Regras',
+    '/dashboard/monitoring': 'Monitoramento',
+    '/dashboard/investigation': 'Investigação',
+    '/dashboard/review': 'Fila de Revisão',
+    '/dashboard/reports': 'Relatórios',
+    '/dashboard/alerting': 'Alertas',
+    '/dashboard/webhooks': 'Webhooks',
+    '/dashboard/users': 'Usuários',
+    '/dashboard/settings': 'Configurações',
+    '/dashboard/api-keys': 'API Keys',
+    '/dashboard/audit': 'Logs de Auditoria',
+    '/dashboard/billing': 'Plano & Uso',
+    '/dashboard/profile': 'Perfil',
+    '/dashboard/learning': 'Aprendizado',
+    '/admin/overview': 'Super Admin',
+    '/admin/accounts': 'Contas',
+    '/admin/plans': 'Planos',
+    '/admin/profile': 'Perfil',
+}
+
 function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { isSuperAdmin } = useAuth()
+    const location = useLocation()
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+    useEffect(() => {
+        const title = PAGE_TITLES[location.pathname]
+        document.title = title ? `${title} — Scora` : 'Scora — Risk Intelligence'
+    }, [location.pathname])
 
     return (
         <div className="min-h-screen bg-background">
@@ -114,6 +149,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
             >
                 <div className="p-4 md:p-6">{children}</div>
             </main>
+            <CompanySetupModal />
             <Toaster />
         </div>
     )
@@ -126,6 +162,7 @@ function AppRouter() {
         <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/accept-invite/:token" element={<AcceptInvitationPage />} />
             <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
             <Route
@@ -259,6 +296,16 @@ function AppRouter() {
                 }
             />
             <Route
+                path="/dashboard/billing"
+                element={
+                    <AdminRoute>
+                        <DashboardLayout>
+                            <BillingPage />
+                        </DashboardLayout>
+                    </AdminRoute>
+                }
+            />
+            <Route
                 path="/dashboard/profile"
                 element={
                     <ProtectedRoute>
@@ -348,6 +395,7 @@ function AppRouter() {
 
 function App() {
     return (
+        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
         <ErrorBoundaryProvider>
             <QueryClientProvider client={queryClient}>
                 <ThemeProvider>
@@ -362,6 +410,7 @@ function App() {
                 </ThemeProvider>
             </QueryClientProvider>
         </ErrorBoundaryProvider>
+        </GoogleOAuthProvider>
     )
 }
 

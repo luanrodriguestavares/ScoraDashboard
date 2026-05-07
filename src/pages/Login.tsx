@@ -1,12 +1,13 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/use-toast'
-import { Moon, Sun, LogIn, Eye, EyeOff } from 'lucide-react'
+import { GoogleLogin } from '@react-oauth/google'
+import { LogIn, Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
     const [email, setEmail] = useState('')
@@ -14,12 +15,12 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
 
-    const { login } = useAuth()
+    const { login, loginWithGoogle } = useAuth()
     const { isDark, toggle } = useTheme()
     const { toast } = useToast()
     const navigate = useNavigate()
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         setIsLoading(true)
         try {
@@ -41,14 +42,20 @@ export default function Login() {
         }
     }
 
+    async function handleGoogle(credential: string) {
+        setIsLoading(true)
+        try {
+            const user = await loginWithGoogle(credential)
+            navigate(user.role === 'super_admin' ? '/admin/overview' : '/dashboard')
+        } catch {
+            toast({ variant: 'warning', title: 'Falha ao entrar com Google' })
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
-            <div className="absolute top-4 right-4">
-                <Button variant="ghost" size="icon" onClick={toggle} className="w-9 h-9">
-                    {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                </Button>
-            </div>
-
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
                     <div className="mx-auto mb-4 flex h-12 items-center justify-center">
@@ -58,18 +65,32 @@ export default function Login() {
                             className="h-10 w-auto"
                         />
                     </div>
-                    <CardTitle className="text-2xl font-heading">Login</CardTitle>
-                    <CardDescription>
-                        Entre na sua conta para acessar o painel administrativo
-                    </CardDescription>
+                    <CardTitle className="text-2xl font-heading">Entrar</CardTitle>
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="space-y-4">
+                    <div className="flex justify-center">
+                        <GoogleLogin
+                            onSuccess={(res) => res.credential && handleGoogle(res.credential)}
+                            onError={() => toast({ variant: 'warning', title: 'Falha ao entrar com Google' })}
+                            width="352"
+                            text="signin_with"
+                            shape="rectangular"
+                        />
+                    </div>
+
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-border" />
+                        </div>
+                        <div className="relative flex justify-center text-xs">
+                            <span className="bg-card px-2 text-muted-foreground">ou</span>
+                        </div>
+                    </div>
+
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
-                            <label htmlFor="email" className="text-sm font-medium">
-                                Email
-                            </label>
+                            <label htmlFor="email" className="text-sm font-medium">Email</label>
                             <Input
                                 id="email"
                                 type="email"
@@ -77,13 +98,12 @@ export default function Login() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
+                                disabled={isLoading}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <label htmlFor="password" className="text-sm font-medium">
-                                Senha
-                            </label>
+                            <label htmlFor="password" className="text-sm font-medium">Senha</label>
                             <div className="relative">
                                 <Input
                                     id="password"
@@ -93,6 +113,7 @@ export default function Login() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
                                     className="pr-10"
+                                    disabled={isLoading}
                                 />
                                 <button
                                     type="button"
@@ -100,11 +121,7 @@ export default function Login() {
                                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                                     aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                                 >
-                                    {showPassword ? (
-                                        <EyeOff className="h-4 w-4" />
-                                    ) : (
-                                        <Eye className="h-4 w-4" />
-                                    )}
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </button>
                             </div>
                         </div>
@@ -112,7 +129,7 @@ export default function Login() {
                         <Button type="submit" className="w-full" disabled={isLoading}>
                             {isLoading ? (
                                 <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
                                     Entrando...
                                 </>
                             ) : (
@@ -124,7 +141,7 @@ export default function Login() {
                         </Button>
                     </form>
 
-                    <div className="mt-6 text-center text-sm text-muted-foreground">
+                    <div className="text-center text-sm text-muted-foreground">
                         <button
                             type="button"
                             className="underline hover:text-foreground"

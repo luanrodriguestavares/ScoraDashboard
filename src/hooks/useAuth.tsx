@@ -8,6 +8,8 @@ interface AuthContextType {
     account: Account | null
     isLoading: boolean
     login: (credentials: LoginCredentials) => Promise<User>
+    loginWithGoogle: (credential: string) => Promise<User>
+    register: (payload: { name: string; email: string; password: string; company_name?: string; account_name?: string }) => Promise<User>
     logout: () => Promise<void>
     refreshUser: () => Promise<void>
     isAuthenticated: boolean
@@ -38,6 +40,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return session.user
         } catch (error) {
             throw new Error('Falha no login')
+        }
+    }, [])
+
+    const loginWithGoogle = useCallback(async (credential: string) => {
+        try {
+            const { token, refreshToken, expiresAt } = await authApi.loginWithGoogle(credential)
+            setTokens({ accessToken: token, refreshToken, expiresAt })
+
+            const session = await authApi.me()
+            setUser(session.user)
+            setAccount(session.account)
+            return session.user
+        } catch (error) {
+            throw new Error('Falha no login com Google')
+        }
+    }, [])
+
+    const register = useCallback(async (payload: { name: string; email: string; password: string; company_name?: string; account_name?: string }) => {
+        try {
+            const { token, refreshToken, expiresAt } = await authApi.register(payload)
+            setTokens({ accessToken: token, refreshToken, expiresAt })
+
+            const session = await authApi.me()
+            setUser(session.user)
+            setAccount(session.account)
+            return session.user
+        } catch (error) {
+            throw error
         }
     }, [])
 
@@ -98,6 +128,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         account,
         isLoading,
         login,
+        loginWithGoogle,
+        register,
         logout,
         refreshUser,
         isAuthenticated: !!user,

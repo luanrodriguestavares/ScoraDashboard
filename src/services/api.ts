@@ -347,6 +347,18 @@ export const authApi = {
         }),
 
     me: () => fetchWithAuth<{ user: User; account: Account }>('/v1/admin/auth/me'),
+
+    loginWithGoogle: (credential: string) =>
+        fetchJson<{
+            token: string
+            refreshToken: string
+            expiresAt: number
+            user: User
+            account: Account
+        }>('/v1/admin/auth/google', {
+            method: 'POST',
+            body: JSON.stringify({ credential }),
+        }),
 }
 
 export const dashboardApi = {
@@ -950,5 +962,40 @@ export const decisionApi = {
     reveal: (id: string) =>
         fetchWithAuth<{ available: boolean; value: string | null; storage_mode: string }>(
             `/v1/admin/decisions/${id}/reveal`
+        ),
+}
+
+export const publicPlansApi = {
+    getAll: async (): Promise<import('@/types').Plan[]> => {
+        const res = await fetch(`${API_BASE_URL}/v1/plans/public`)
+        if (!res.ok) throw new Error('Failed to load plans')
+        const json = await res.json()
+        return json.data ?? []
+    },
+}
+
+export const billingApi = {
+    getSubscription: () =>
+        fetchWithAuth<{
+            id: string
+            plan_id: string
+            status: string
+            cycle: string
+            amount_cents: number
+            checkout_url: string | null
+            activated_at: string | null
+            last_payment_at: string | null
+            cancelled_at: string | null
+        } | null>('/v1/admin/billing/subscription'),
+
+    createCheckout: (payload: {
+        plan_id: string
+        customer: { tax_id: string; name?: string; email?: string; cellphone?: string }
+        return_url?: string
+        completion_url?: string
+    }) =>
+        fetchWithAuth<{ id: string; checkout_url: string | null; status: string }>(
+            '/v1/admin/billing/subscriptions/checkout',
+            { method: 'POST', body: JSON.stringify(payload) }
         ),
 }

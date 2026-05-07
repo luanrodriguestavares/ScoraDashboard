@@ -23,8 +23,9 @@ src/
 │   └── ui/           # Radix UI wrappers (shadcn)
 ├── contexts/         # LanguageContext
 ├── hooks/            # useAuth, useTheme, useErrorHandler
+├── lib/              # utils.ts (helpers de shadcn/cn)
 ├── pages/            # Uma página por rota
-├── services/         # api.ts, auth.ts
+├── services/         # api.ts, auth.ts, error-handler.ts, utils.ts
 ├── types/            # Tipos globais
 ├── utils/            # export, buildLocalExplainability, decisionRecommendation
 └── constants/        # reasonCatalog
@@ -64,9 +65,12 @@ O dashboard usa JWT com refresh token. O `AuthProvider` gerencia o estado de ses
 | `/dashboard/graph` | user | Grafo relacional de identidade |
 | `/dashboard/analytics` | user | Analytics e distribuição de risco |
 | `/dashboard/learning` | user | Sistema de aprendizado e feedback |
+| `/dashboard/profile` | user | Perfil do usuário autenticado |
 | `/dashboard/rules` | admin | Motor de regras customizadas |
 | `/dashboard/monitoring` | admin | Métricas operacionais e latência |
 | `/dashboard/alerting` | admin | Regras e eventos de alertas |
+| `/dashboard/webhooks` | admin | Webhooks de saída configurados |
+| `/dashboard/reports` | admin | Relatórios e exportações |
 | `/dashboard/users` | admin | Gerenciamento de usuários |
 | `/dashboard/api-keys` | admin | API keys da conta |
 | `/dashboard/audit` | admin | Logs de auditoria |
@@ -74,3 +78,4 @@ O dashboard usa JWT com refresh token. O `AuthProvider` gerencia o estado de ses
 | `/admin/overview` | super_admin | Visão geral de todas as contas |
 | `/admin/accounts` | super_admin | Gerenciamento de contas |
 | `/admin/plans` | super_admin | Planos e limites |
+| `/admin/profile` | super_admin | Perfil do super admin |

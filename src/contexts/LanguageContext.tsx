@@ -22,6 +22,9 @@ type DashboardCopy = {
         reports: string
         alerting: string
         accounts: string
+        webhooks: string
+        billing: string
+        plan: string
     }
     header: {
         title: string
@@ -315,6 +318,17 @@ type DashboardCopy = {
         active: string
         actions: string
         viewAll: string
+        sectionRisk: string
+        sectionAccount: string
+        sectionAdmin: string
+        items: string
+        group: string
+        passwordWeak: string
+        passwordMedium: string
+        passwordStrong: string
+        saving: string
+        uploading: string
+        changing: string
     }
     decisions: {
         allow: string
@@ -406,6 +420,7 @@ type DashboardCopy = {
         dangerZone: string
         deleteAccount: string
         deleteAccountDescription: string
+        deleteAccountNote: string
     }
     errors: {
         networkTitle: string
@@ -767,6 +782,8 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             alerting: 'Alertas',
             accounts: 'Contas',
             webhooks: 'Webhooks',
+            billing: 'Plano & Uso',
+            plan: 'Planos',
         },
         header: {
             title: 'Scora Panel',
@@ -1063,11 +1080,22 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             active: 'Ativo',
             actions: 'Ações',
             viewAll: 'Ver mais',
+            sectionRisk: 'Inteligência de Risco',
+            sectionAccount: 'Conta',
+            sectionAdmin: 'Administração',
+            items: 'itens',
+            group: 'grupo',
+            passwordWeak: 'Fraca',
+            passwordMedium: 'Média',
+            passwordStrong: 'Forte',
+            saving: 'Salvando...',
+            uploading: 'Enviando...',
+            changing: 'Alterando...',
         },
         decisions: {
-            allow: 'Aprovar',
-            review: 'Revisar',
-            block: 'Bloquear',
+            allow: 'Aprovado',
+            review: 'Em Revisão',
+            block: 'Bloqueado',
         },
         decisionsPage: {
             title: 'Decisões',
@@ -1197,6 +1225,7 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             dangerZone: 'Zona de Perigo',
             deleteAccount: 'Excluir Conta',
             deleteAccountDescription: 'Esta ação é irreversível e excluirá todos os seus dados',
+            deleteAccountNote: 'A exclusão requer operação administrativa. Entre em contato com o suporte.',
         },
         errors: {
             networkTitle: 'Erro de Conexão',
@@ -1560,6 +1589,8 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             alerting: 'Alerting',
             accounts: 'Accounts',
             webhooks: 'Webhooks',
+            billing: 'Plan & Usage',
+            plan: 'Plans',
         },
         header: {
             title: 'Scora Panel',
@@ -1857,11 +1888,22 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             active: 'Active',
             actions: 'Actions',
             viewAll: 'View more',
+            sectionRisk: 'Risk Intelligence',
+            sectionAccount: 'Account',
+            sectionAdmin: 'Administration',
+            items: 'items',
+            group: 'group',
+            passwordWeak: 'Weak',
+            passwordMedium: 'Medium',
+            passwordStrong: 'Strong',
+            saving: 'Saving...',
+            uploading: 'Uploading...',
+            changing: 'Updating...',
         },
         decisions: {
-            allow: 'Allow',
-            review: 'Review',
-            block: 'Block',
+            allow: 'Allowed',
+            review: 'In Review',
+            block: 'Blocked',
         },
         decisionsPage: {
             title: 'Decisions',
@@ -1991,6 +2033,7 @@ const dashboardCopy: Record<Language, DashboardCopy> = {
             dangerZone: 'Danger Zone',
             deleteAccount: 'Delete Account',
             deleteAccountDescription: 'This action is irreversible and will delete all your data',
+            deleteAccountNote: 'Account deletion requires administrative action. Please contact support.',
         },
         errors: {
             networkTitle: 'Connection Error',
