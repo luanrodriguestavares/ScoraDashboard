@@ -23,6 +23,7 @@ import type {
     AlertRule,
     AlertEvent,
     WebhookEvent,
+    DecisionExecutiveSummary,
 } from '@/types'
 import { getAccessToken, clearTokens, refreshSession } from './auth'
 
@@ -958,6 +959,9 @@ export const decisionApi = {
         fetchWithAuth<RiskDecision[]>(`/v1/admin/decisions/recent?limit=${limit}`),
 
     getById: (id: string) => fetchWithAuth<RiskDecision>(`/v1/admin/decisions/${id}`),
+
+    getExecutiveSummary: (id: string) =>
+        fetchWithAuth<DecisionExecutiveSummary>(`/v1/admin/decisions/${id}/executive-summary`),
 
     reveal: (id: string) =>
         fetchWithAuth<{ available: boolean; value: string | null; storage_mode: string }>(

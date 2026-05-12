@@ -50,6 +50,45 @@ export type ExplainabilityData = {
     }
 }
 
+export type DecisionExecutiveSummary = {
+    decision_id: string
+    summary_text: string
+    summary_markdown: string
+    executive_summary: string
+    recommended_action: string
+    top_reasons: string[]
+    top_drivers: Array<{
+        label: string
+        layer: 'validation' | 'history' | 'velocity' | 'context' | 'graph' | 'pattern' | 'rules'
+        delta_score: number
+        direction: 'risk_up' | 'risk_down'
+    }>
+    evidence: {
+        patterns: string[]
+        anomalies: string[]
+        rules_triggered: Array<{
+            rule_id: string
+            rule_name: string
+            action: string
+            reason?: string
+        }>
+    }
+    foundation: {
+        final_decision: 'approve' | 'review' | 'block'
+        final_decision_reason: string
+        score: number
+        risk_level: string
+        confidence: number
+        recommendation: 'approve' | 'block' | null
+        recommendation_confidence: number
+        recommendation_reason: string
+        decision_floor?: 'validation_review' | 'validation_block' | 'invalid_policy' | null
+        threshold_position: 'below_review' | 'in_review_band' | 'above_block' | 'unknown'
+        model_version: string | null
+        created_at: string
+    }
+}
+
 export interface RiskDecision {
     id: string
     decision_id?: string

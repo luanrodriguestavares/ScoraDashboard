@@ -3,12 +3,20 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { DecisionBadge, RiskBadge } from '@/components/dashboard/RiskIndicators'
-import type { RiskDecision } from '@/types'
+import type {
+    DecisionExecutiveSummary,
+    ExplainabilityData,
+    FactorContribution,
+    RiskDecision,
+} from '@/types'
 import { useNavigate } from 'react-router-dom'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ExplanationNarrative } from '@/components/explainability/ExplanationNarrative'
 import { buildLocalExplainability } from '@/utils/buildLocalExplainability'
 import { History } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { decisionApi } from '@/services/api'
+import { useMemo } from 'react'
 
 type RevealState = {
     canReveal: boolean
@@ -20,6 +28,70 @@ type RevealState = {
 type ActionState = {
     onApprove?: () => void
     onBlock?: () => void
+}
+
+function mapDriverLayer(
+    layer: DecisionExecutiveSummary['top_drivers'][number]['layer']
+): FactorContribution['component'] {
+    return layer === 'history' ? 'historical' : layer
+}
+
+function mapExecutiveSummaryToExplainability(
+    summary: DecisionExecutiveSummary,
+    fallback: ExplainabilityData
+): ExplainabilityData {
+    const drivers = summary.top_drivers ?? []
+    const totalDriverWeight = drivers.reduce(
+        (acc, driver) => acc + Math.abs(Number(driver.delta_score || 0)),
+        0
+    )
+
+    const factor_contributions =
+        totalDriverWeight > 0
+            ? drivers.map((driver) => {
+                  const rawScore = Math.abs(Number(driver.delta_score || 0))
+                  return {
+                      component: mapDriverLayer(driver.layer),
+                      raw_score: rawScore,
+                      weighted_score: rawScore,
+                      contribution_pct: (rawScore / totalDriverWeight) * 100,
+                  }
+              })
+            : fallback.factor_contributions
+
+    const riskFactors: ExplainabilityData['narrative']['risk_factors'] = drivers.map((driver) => ({
+        title: driver.label,
+        description:
+            driver.direction === 'risk_up'
+                ? `${driver.label} elevou o score em ${Number(driver.delta_score || 0).toFixed(3)}.`
+                : `${driver.label} reduziu o score em ${Math.abs(Number(driver.delta_score || 0)).toFixed(3)}.`,
+        weight_pct:
+            totalDriverWeight > 0
+                ? (Math.abs(Number(driver.delta_score || 0)) / totalDriverWeight) * 100
+                : 0,
+        signal: driver.layer,
+    }))
+
+    if (riskFactors.length === 0) {
+        riskFactors.push(
+            ...summary.top_reasons.slice(0, 3).map((reason) => ({
+                title: reason,
+                description: reason,
+                weight_pct: 0,
+                signal: 'rules' as const,
+            }))
+        )
+    }
+
+    return {
+        risk_archetype: fallback.risk_archetype,
+        factor_contributions,
+        narrative: {
+            executive_summary: summary.executive_summary || fallback.narrative.executive_summary,
+            risk_factors: riskFactors,
+            recommended_action: summary.recommended_action || fallback.narrative.recommended_action,
+        },
+    }
 }
 
 interface DecisionDetailsModalProps {
@@ -39,6 +111,21 @@ export function DecisionDetailsModal({
 }: DecisionDetailsModalProps) {
     const { t } = useLanguage()
     const navigate = useNavigate()
+    const executiveSummaryQuery = useQuery({
+        queryKey: ['decisions', decision?.id, 'executive-summary'],
+        queryFn: () => decisionApi.getExecutiveSummary(decision!.id),
+        enabled: open && !!decision?.id,
+        staleTime: 60_000,
+    })
+
+    const explainability = useMemo(() => {
+        if (!decision) return null
+
+        const fallback = decision.explainability ?? buildLocalExplainability(decision)
+        if (!executiveSummaryQuery.data) return fallback
+
+        return mapExecutiveSummaryToExplainability(executiveSummaryQuery.data, fallback)
+    }, [decision, executiveSummaryQuery.data])
 
     if (!decision) {
         return (
@@ -65,8 +152,6 @@ export function DecisionDetailsModal({
     const graphAnalysis = decision.graph_analysis
     const explanation = decision.explanation
     const itemLabel = decision.item_ref || decision.valueHash
-
-    const explainability = decision.explainability ?? buildLocalExplainability(decision)
 
     const breakdownItems = [
         {
@@ -113,11 +198,7 @@ export function DecisionDetailsModal({
         explanation?.thresholds?.review_start != null && explanation?.thresholds?.review_end != null
 
     const getScoreBarColor = (value: number) =>
-        value < 0.35
-            ? 'bg-emerald-500/70'
-            : value < 0.65
-              ? 'bg-amber-500/70'
-              : 'bg-red-500/70'
+        value < 0.35 ? 'bg-emerald-500/70' : value < 0.65 ? 'bg-amber-500/70' : 'bg-red-500/70'
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -191,7 +272,7 @@ export function DecisionDetailsModal({
 
                         {/* ── 2. Threat narrative (always present) ───────────────── */}
                         <ExplanationNarrative
-                            explainability={explainability}
+                            explainability={explainability!}
                             decisionId={decision.id}
                             decision={decision.decision}
                         />
